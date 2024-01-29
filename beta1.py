@@ -10,6 +10,7 @@ from bpy.props import StringProperty, EnumProperty, FloatProperty, CollectionPro
 from bpy_extras.io_utils import ImportHelper
 import os
 import math
+import json
 
 # Utilidades
 def set_object_mode(obj, mode):
@@ -328,7 +329,6 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
 
         return {'FINISHED'}
 
-import json
 class VIEW3D_OT_SubmitParametersOperator(Operator):
     bl_idname = "view3d.submit_parameters"
     bl_label = "Submit Parameters"
@@ -344,7 +344,10 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
         # Obtener los valores de la fuerza y el método desde el contexto
         force_value = context.scene.force_value
         selected_option = context.scene.selected_option
-        focal_point_coordinates = context.scene.focal_point_coordinates
+        focal_point_coordinates = [float(coord) for coord in context.scene.focal_point_coordinates.split(",")]
+
+        # Convertir las coordenadas del punto focal a una cadena JSON sin indentación
+        focal_point_coordinates_str = json.dumps(focal_point_coordinates, indent=None)
 
         # Obtener el diccionario existente o crear uno nuevo
         muscle_parameters_str = context.scene.get("muscle_parameters", "[]")
@@ -352,9 +355,9 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
 
         # Almacenar los datos en un diccionario
         data = {
-            'file': f"/{file_name}",  
+            'file': f"f'{{path}}/{file_name}'",  
             'force': force_value,
-            'focalpt': focal_point_coordinates,  # Convertir las coordenadas a una lista de floats
+            'focalpt': focal_point_coordinates_str,  # Usar la cadena JSON de las coordenadas
             'method': selected_option
         }
 
@@ -362,15 +365,12 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
         muscle_parameters.append(data)  # Utilizar append para agregar un nuevo elemento a la lista
 
         # Almacenar el diccionario como cadena JSON en la propiedad de la escena
-        context.scene["muscle_parameters"] = json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False)
+        json_str = json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False)
+        context.scene["muscle_parameters"] = json_str
 
         # Mostrar el diccionario en la consola
         self.report({'INFO'}, "Stored data:\n" + json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False))
         return {'FINISHED'}
-
-
-
-
 
 
 # Definición de la clase VIEW3D_OT_SelectContactPointOperator
@@ -545,7 +545,7 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                 Constraint_point1 = bpy.context.scene.Constraint_point1
                 Constraint_point2 = bpy.context.scene.Constraint_point2
                 selected_main_object = context.scene.selected_main_object
-                muscle_parameters = context.scene.get("muscle_parameters", {})
+                muscle_parameters = str(context.scene.get("muscle_parameters", {}).replace('"', "'"))
                 
                 if collection:
                     # Verificar si Contact Point 2 existe
@@ -566,7 +566,7 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                         ]
                     else:
                         # Solo Constraint Point 1 está presente
-                        constraint_pts = [f"    p['axis_pt1'] = {[float(coord) for coord in Constraint_point1.split(',')]}\n"]
+                        constraint_pts = [f"p['axis_pt1'] = {[float(coord) for coord in Constraint_point1.split(',')]}\n"]
                     #Exportar malla principal
                     selected_main_object = context.scene.selected_main_object
                     main_object = bpy.data.objects.get(selected_main_object)
@@ -703,7 +703,7 @@ def register():
         items=[
             ('U', "Uniform-traction", "U: Uniform-traction"),
             ('T', "Tangential-traction", "T: Tangential-traction"),
-            ('TN', "Tangential-plus-normal-traction", "TN: Tangential-plus-normal-traction"),
+            ('T+N', "Tangential-plus-normal-traction", "TN: Tangential-plus-normal-traction"),
         ],
         name="Options",
         default='U',
