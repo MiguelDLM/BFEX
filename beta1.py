@@ -40,6 +40,10 @@ class VIEW3D_PT_FilePathPanel(bpy.types.Panel):
 
         row = box.row()
         row.operator("view3d.create_folder", text="Create Folder")
+        
+        # Sección "Select main object"
+        row = box.row()
+        row.operator("view3d.submit_object", text="Submit Object")
 
         # Sección "Rotate Elements"
         box = layout.box()
@@ -183,6 +187,22 @@ class VIEW3D_OT_CreateFolderOperator(Operator):
 
         return {'FINISHED'}
         
+class VIEW3D_OT_SubmitMainObjectOperator(Operator):
+    bl_idname = "view3d.submit_object"
+    bl_label = "Submit Object"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        active_object = bpy.context.active_object
+
+        if active_object:
+            context.scene.selected_main_object = active_object.name
+            self.report({'INFO'}, f"Main object set to: {context.scene.selected_main_object}")
+        else:
+            self.report({'ERROR'}, "No active object.")
+
+        return {'FINISHED'}
+        
 # Operador para rotar elementos
 class VIEW3D_OT_RotateElementsOperator(bpy.types.Operator):
     bl_idname = "view3d.rotate_elements"
@@ -300,7 +320,7 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
         vertices = [v.co for v in context.active_object.data.vertices if v.select]
 
         if vertices:
-            context.scene.focal_point_coordinates = f"X: {vertices[0][0]:.3f}, Y: {vertices[0][1]:.3f}, Z: {vertices[0][2]:.3f}"
+            context.scene.focal_point_coordinates = f"{vertices[0][0]:.3f},{vertices[0][1]:.3f},{vertices[0][2]:.3f}"
             self.report({'INFO'}, f"Focal Point coordinates: {context.scene.focal_point_coordinates}")
         else:
             context.scene.focal_point_coordinates = ""
@@ -308,6 +328,7 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
 
         return {'FINISHED'}
 
+import json
 class VIEW3D_OT_SubmitParametersOperator(Operator):
     bl_idname = "view3d.submit_parameters"
     bl_label = "Submit Parameters"
@@ -318,25 +339,39 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
         last_submesh_name = context.scene.submesh_name
 
         # Construir el nombre del archivo STL
-        file_name = f"{last_submesh_name}.stl"
-        file_path = os.path.join(context.scene.selected_folder, context.scene.new_folder_name, file_name)
+        file_name = f"{last_submesh_name}.stl"  # Agregar "/" antes del nombre del archivo
 
         # Obtener los valores de la fuerza y el método desde el contexto
         force_value = context.scene.force_value
         selected_option = context.scene.selected_option
+        focal_point_coordinates = context.scene.focal_point_coordinates
+
+        # Obtener el diccionario existente o crear uno nuevo
+        muscle_parameters_str = context.scene.get("muscle_parameters", "[]")
+        muscle_parameters = json.loads(muscle_parameters_str)
 
         # Almacenar los datos en un diccionario
         data = {
-            'file': file_path,
+            'file': f"/{file_name}",  
             'force': force_value,
-            'focalpt': context.scene.focal_point_coordinates,
+            'focalpt': focal_point_coordinates,  # Convertir las coordenadas a una lista de floats
             'method': selected_option
         }
 
-        # Mostrar el diccionario en la consola
-        print("Stored data:", data)
+        # Agregar la entrada al diccionario
+        muscle_parameters.append(data)  # Utilizar append para agregar un nuevo elemento a la lista
 
+        # Almacenar el diccionario como cadena JSON en la propiedad de la escena
+        context.scene["muscle_parameters"] = json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False)
+
+        # Mostrar el diccionario en la consola
+        self.report({'INFO'}, "Stored data:\n" + json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False))
         return {'FINISHED'}
+
+
+
+
+
 
 # Definición de la clase VIEW3D_OT_SelectContactPointOperator
 class VIEW3D_OT_SelectContactPointOperator(Operator):
@@ -509,6 +544,8 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                 Contact_point2 = bpy.context.scene.Contact_point2
                 Constraint_point1 = bpy.context.scene.Constraint_point1
                 Constraint_point2 = bpy.context.scene.Constraint_point2
+                selected_main_object = context.scene.selected_main_object
+                muscle_parameters = context.scene.get("muscle_parameters", {})
                 
                 if collection:
                     # Verificar si Contact Point 2 existe
@@ -530,9 +567,28 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                     else:
                         # Solo Constraint Point 1 está presente
                         constraint_pts = [f"    p['axis_pt1'] = {[float(coord) for coord in Constraint_point1.split(',')]}\n"]
-                                         
-                    for obj in collection.objects:
+                    #Exportar malla principal
+                    selected_main_object = context.scene.selected_main_object
+                    main_object = bpy.data.objects.get(selected_main_object)
+
+                    if main_object:
+                        bpy.context.view_layer.objects.active = main_object
+                        bpy.ops.object.select_all(action='DESELECT')
+                        main_object.select_set(True)
+
+                        # Construir el nombre de archivo y exportar la malla en formato STL
+                        file_name_main = f"{main_object.name}.stl"
+                        file_path_stl_main = os.path.join(file_path, collection_name, file_name_main)
+                        bpy.ops.export_mesh.stl(filepath=file_path_stl_main, use_selection=True, ascii=False)
+
+                        # Desactivar la malla después de la exportación
+                        bpy.context.view_layer.objects.active = None
+                    else:
+                        self.report({'ERROR'}, f"Main object '{selected_main_object}' not found")
+                       
+                    for obj in collection.objects:                          
                         if obj.type == 'MESH':
+                        
                             # Activar y seleccionar solo la malla que se exportará
                             bpy.context.view_layer.objects.active = obj
                             bpy.ops.object.select_all(action='DESELECT')
@@ -557,9 +613,10 @@ def parms(d={{}}):
     p = {{}}
     import os
     path = os.path.join(os.path.dirname(__file__), '{collection_name}')
-    p['bone'] = f'{{path}}/'
+    p['bone'] = f'{{path}}/{file_name_main}'
     p['contact_pts'] = {contact_pts}
     {''.join(constraint_pts)}
+    p['muscles'] = {muscle_parameters}
 
 """
 
@@ -602,11 +659,15 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_SubmitConstraintPointOperator1)
     bpy.utils.register_class(VIEW3D_OT_SubmitConstraintPointOperator2)
     bpy.utils.register_class(VIEW3D_OT_ClearConstraintPointsOperator)
+    bpy.utils.register_class(VIEW3D_OT_SubmitMainObjectOperator)
 
     bpy.types.Scene.Contact_point1 = bpy.props.StringProperty()
     bpy.types.Scene.Contact_point2 = bpy.props.StringProperty()
     bpy.types.Scene.Constraint_point1 = bpy.props.StringProperty()
     bpy.types.Scene.Constraint_point2 = bpy.props.StringProperty()
+    bpy.types.Scene.selected_main_object = bpy.props.StringProperty(name="Selected Main Object")
+    bpy.types.Scene.muscle_parameters = bpy.props.StringProperty()
+
 
     bpy.types.Scene.selected_folder = StringProperty(
         name="Selected Folder",
@@ -684,6 +745,7 @@ def unregister():
     bpy.utils.unregister_class(VIEW3D_OT_SubmitConstraintPointOperator1)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitConstraintPointOperator2)
     bpy.utils.unregister_class(VIEW3D_OT_ClearConstraintPointsOperator)
+    bpy.utils.unregister_class(VIEW3D_OT_SubmitMainObjectOperator)
 
     del bpy.types.Scene.selected_folder
     del bpy.types.Scene.new_folder_name
