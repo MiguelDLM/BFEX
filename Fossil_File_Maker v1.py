@@ -268,11 +268,11 @@ class VIEW3D_OT_StartSelectionOperator(Operator):
     def execute(self, context):
         # Cambiar a modo de edición y activar la herramienta "lasso select" con "face select"
         bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.ops.wm.tool_set_by_id(name="builtin.select_lasso", space_type='VIEW_3D')
-        bpy.context.tool_settings.mesh_select_mode[0] = False  # Modo de selección de cara
+        bpy.ops.mesh.select_all(action='DESELECT')       
+        bpy.context.tool_settings.mesh_select_mode[0] = False 
         bpy.context.tool_settings.mesh_select_mode[1] = False
         bpy.context.tool_settings.mesh_select_mode[2] = True
+        bpy.ops.wm.tool_set_by_id(name="builtin.select_lasso", space_type='VIEW_3D')
 
         return {'FINISHED'}
 
