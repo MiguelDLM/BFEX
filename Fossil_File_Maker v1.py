@@ -98,6 +98,8 @@ class VIEW3D_PT_FilePathPanel(bpy.types.Panel):
         # Button to submit parameters
         row = box.row()
         row.operator("view3d.submit_parameters", text="Submit Parameters", icon='EXPORT')
+        row = box.row()
+        row.operator("view3d.delete_last_muscle_attachment", text="Delete Last Muscle Attachment AND parameters", icon='TRASH')
 
         # Contact Points Section
         box = layout.box()
@@ -267,6 +269,7 @@ class VIEW3D_OT_StartSelectionOperator(Operator):
         # Cambiar a modo de edición y activar la herramienta "lasso select" con "face select"
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.wm.tool_set_by_id(name="builtin.select_lasso", space_type='VIEW_3D')
         bpy.context.tool_settings.mesh_select_mode[0] = False  # Modo de selección de cara
         bpy.context.tool_settings.mesh_select_mode[1] = False
         bpy.context.tool_settings.mesh_select_mode[2] = True
@@ -390,6 +393,38 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
 
         # Mostrar el diccionario en la consola
         self.report({'INFO'}, "Stored data:\n" + json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False))
+        return {'FINISHED'}
+
+class VIEW3D_OT_DeleteLastMuscleAttachmentOperator(Operator):
+    bl_idname = "view3d.delete_last_muscle_attachment"
+    bl_label = "Delete Last Muscle Attachment"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # Obtener el diccionario existente o crear uno nuevo
+        muscle_parameters_str = context.scene.get("muscle_parameters", "[]")
+        muscle_parameters = json.loads(muscle_parameters_str)
+
+        # Verificar si hay elementos en el diccionario antes de intentar eliminar
+        if muscle_parameters:
+            last_submesh_name = context.scene.submesh_name
+            last_submesh_object = bpy.data.objects.get(last_submesh_name)
+
+            if last_submesh_object:
+                bpy.data.objects.remove(last_submesh_object, do_unlink=True)
+
+            # Eliminar la última entrada del diccionario
+            muscle_parameters.pop()
+
+            # Almacenar el diccionario actualizado como cadena JSON en la propiedad de la escena
+            json_str = json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False)
+            context.scene["muscle_parameters"] = json_str
+            context.scene.submesh_name = ""
+
+            self.report({'INFO'}, f"Deleted last muscle attachment: {last_submesh_name}")
+        else:
+            self.report({'WARNING'}, "No muscle attachments to delete.")
+
         return {'FINISHED'}
 
 
@@ -740,6 +775,7 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_SubmitConstraintPointOperator2)
     bpy.utils.register_class(VIEW3D_OT_ClearConstraintPointsOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitMainObjectOperator)
+    bpy.utils.register_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
 
     bpy.types.Scene.Contact_point1 = bpy.props.StringProperty(
         name="Contact Point 1",
@@ -929,6 +965,7 @@ def unregister():
     bpy.utils.unregister_class(VIEW3D_OT_SubmitConstraintPointOperator2)
     bpy.utils.unregister_class(VIEW3D_OT_ClearConstraintPointsOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitMainObjectOperator)
+    bpy.utils.unregister_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
 
     del bpy.types.Scene.selected_folder
     del bpy.types.Scene.new_folder_name
