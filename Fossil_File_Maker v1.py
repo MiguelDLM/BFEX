@@ -12,6 +12,7 @@ import os
 import math
 import json
 import re
+import subprocess
 
 # Utilidades
 def set_object_mode(obj, mode):
@@ -172,6 +173,11 @@ class VIEW3D_PT_FilePathPanel(bpy.types.Panel):
         # Export button
         row = box.row()
         row.operator("view3d.export_meshes", text="Export files", icon='EXPORT')
+        
+        #"Run Fossils button"
+        row = layout.row()
+        row.operator("view3d.run_fossils", text="Run Fossils", icon='PLAY')
+
 
 
 class VIEW3D_OT_BrowseFolderOperator(Operator, ImportHelper):
@@ -752,6 +758,30 @@ if __name__ == "__main__":
 
         return {'FINISHED'}
 
+class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
+    bl_idname = "view3d.run_fossils"
+    bl_label = "Run Fossils"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # Ruta al archivo Python
+        python_file_path = os.path.join(context.scene.selected_folder, "script.py")
+
+        # Carpeta del usuario
+        user_folder = os.path.expanduser("~")
+
+        # Ruta al ejecutable del programa externo
+        external_program_path = os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "fossils.exe")
+
+        try:
+            # Ejecutar el programa externo con el archivo Python específico
+            subprocess.run([external_program_path, python_file_path], check=True, cwd=os.path.dirname(external_program_path))
+            self.report({'INFO'}, f"External program '{external_program_path}' executed successfully with Python file: '{python_file_path}'")
+        except subprocess.CalledProcessError as e:
+            self.report({'ERROR'}, f"Error executing external program: {e}")
+
+        return {'FINISHED'}
+
 
 # Registro de clases y propiedades
 def register():
@@ -776,6 +806,7 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_ClearConstraintPointsOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitMainObjectOperator)
     bpy.utils.register_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
+    bpy.utils.register_class(VIEW3D_OT_RunFossilsOperator)
 
     bpy.types.Scene.Contact_point1 = bpy.props.StringProperty(
         name="Contact Point 1",
@@ -966,6 +997,7 @@ def unregister():
     bpy.utils.unregister_class(VIEW3D_OT_ClearConstraintPointsOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitMainObjectOperator)
     bpy.utils.unregister_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
+    bpy.utils.unregister_class(VIEW3D_OT_RunExternalProgramOperator)
 
     del bpy.types.Scene.selected_folder
     del bpy.types.Scene.new_folder_name
