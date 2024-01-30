@@ -18,7 +18,7 @@ def set_object_mode(obj, mode):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode=mode)
 
-# Panel de la interfaz
+# Interface Panel
 class VIEW3D_PT_FilePathPanel(bpy.types.Panel):
     bl_idname = "PT_FilePathPanel"
     bl_label = "File Path"
@@ -29,85 +29,87 @@ class VIEW3D_PT_FilePathPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-      
+
+        # Data Storage Location
         box = layout.box()
-        box.label(text="Data Storage Location")
+        box.label(text="Data Storage Location",icon='FILE_FOLDER')
 
         row = box.row()
-        row.operator("view3d.browse_folder", text="Browse Folder")
+        row.operator("view3d.browse_folder", text="Browse Folder", icon='FILE_FOLDER')
         row.prop(context.scene, "selected_folder", text="")
 
         row = box.row()
-        row.prop(context.scene, "new_folder_name", text="New Folder Name")
+        row.prop(context.scene, "new_folder_name", text="New Folder Name", icon='GREASEPENCIL')
 
         row = box.row()
-        row.operator("view3d.create_folder", text="Create Folder")
-        
-        # Sección "Select main object"
-        row = box.row()
-        row.operator("view3d.submit_object", text="Submit Object")
+        row.operator("view3d.create_folder", text="Create Folder", icon='NEWFOLDER')
 
-        # Sección "Rotate Elements"
+        # Select Main Object Section
+        row = box.row()
+        row.operator("view3d.submit_object", text="Submit main bone for FEA", icon='BONE_DATA')
+
+        # Rotate Elements Section
         box = layout.box()
         box.label(text="Rotate Elements")
-        
-        #Rotar ejes
-        row = box.row()
-        row.operator("view3d.rotate_elements", text="Rotate Y to Z")
-        
-        # Botón para restaurar la orientación de los ejes
-        row = box.row()
-        row.operator("view3d.restore_orientation_axes", text="Restore Orientation Axes")
 
-        # Sección "Extract Surfaces"
+        # Rotate Axes
+        row = box.row()
+        row.operator("view3d.rotate_elements", text="Rotate Y to Z", icon='FILE_REFRESH')
+
+        # Restore Orientation Axes Button
+        row = box.row()
+        row.operator("view3d.restore_orientation_axes", text="Restore Orientation Axes", icon='RECOVER_LAST')
+
+        # Extract Surfaces Section
         box = layout.box()
         box.label(text="Extract muscle attachment areas and properties")
 
         row = box.row()
-        row.prop(context.scene, "submesh_name", text="Muscle name")
+        row.prop(context.scene, "submesh_name", text="Muscle name", icon='GREASEPENCIL')
 
         row = box.row()
-        row.operator("view3d.start_selection", text="Start Selection")
+        row.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
 
         row = box.row()
-        row.operator("view3d.submit_selection", text="Submit Selection")
-        
+        row.operator("view3d.submit_selection", text="Submit Selection", icon='EXPORT')
+
         box.label(text="Direction of the force")
 
         row = box.row()
-        row.operator("view3d.select_focal_point", text="Select Focal Point")
+        row.operator("view3d.select_focal_point", text="Select Focal Point", icon='RESTRICT_SELECT_OFF')
 
-        # Agregar caja de texto para mostrar coordenadas
+        # Add text box to display coordinates
         row = box.row()
         row.prop(context.scene, "focal_point_coordinates", text="Focal Point Coordinates", emboss=False, icon='VIEW3D')
 
         row = box.row()
-        row.operator("view3d.submit_focal_point", text="Submit Focal Point")
+        row.operator("view3d.submit_focal_point", text="Submit Focal Point", icon='EXPORT')
+
         box.label(text="Muscle Parameters")
 
-        # Caja de texto para ingresar el valor de la fuerza
+        # Text box for force value
         row = box.row()
         row.prop(context.scene, "force_value", text="Force")
 
-        # Lista de opciones para seleccionar
+        # Dropdown list for loading scenario
         row = box.row()
         row.prop(context.scene, "selected_option", text="Loading scenario")
 
-        # Botón para enviar los parámetros
+        # Button to submit parameters
         row = box.row()
-        row.operator("view3d.submit_parameters", text="Submit Parameters")
-        
-        # Sección "Contact Points"
+        row.operator("view3d.submit_parameters", text="Submit Parameters", icon='EXPORT')
+
+        # Contact Points Section
         box = layout.box()
-        box.label(text="Contact Points")
+        box.label(text="Contact Points", icon='FORCE_FORCE')
 
         col = box.column(align=True)
-        col.operator("view3d.select_contact_point", text="Select Contact Point")
+        col.operator("view3d.select_contact_point", text="Select Contact Point", icon='RESTRICT_SELECT_OFF')
 
-        # Cuadro de texto para mostrar las coordenadas del vértice seleccionado
+        # Text box to display selected vertex coordinates
         col.prop(context.scene, "contact_point_coordinates", text="Contact Point Coordinates", emboss=False, icon='VIEW3D')
 
-         # Sección "Select Axes"
+        # Select Axes Section for Contact Points
         row = box.row(align=True)
         row.label(text="Select Axes:")
         row.prop(context.scene, "contact_x", text="X")
@@ -115,57 +117,60 @@ class VIEW3D_PT_FilePathPanel(bpy.types.Panel):
         row.prop(context.scene, "contact_z", text="Z")
 
         col = box.column(align=True)
-        col.operator("view3d.submit_contact_point1", text="Submit Contact Point 1")
-        col.operator("view3d.submit_contact_point2", text="Submit Contact Point 2")
-        col.operator("view3d.clear_contact_points", text="Clear Contact Points")
+        col.operator("view3d.submit_contact_point1", text="Submit Contact Point 1", icon='EXPORT')
+        col.operator("view3d.submit_contact_point2", text="Submit Contact Point 2", icon='EXPORT')
+        col.operator("view3d.clear_contact_points", text="Clear Contact Points", icon='TRASH')
 
-        # Separación visual entre secciones
+        # Visual separation between sections
         layout.separator()
 
-        # Sección "Constraint Points"
+        # Constraint Points Section
         box = layout.box()
-        box.label(text="Constraint Points")
+        box.label(text="Constraint Points", icon='CONSTRAINT_BONE')
 
-        # Columna para Constraint Point 1
+        # Column for Constraint Point 1
         col = box.column(align=True)
-        col.operator("view3d.select_constraint_point", text="Select Constraint Point")
-        col.prop(context.scene, "constraint_point_coordinates", text="Constraint Point 1 Coordinates", emboss=False, icon='VIEW3D')
-        # Sección "Select Axes" para Constraint Point 1
+        col.operator("view3d.select_constraint_point", text="Select Constraint Point", icon='RESTRICT_SELECT_OFF')
+        col.prop(context.scene, "constraint_point_coordinates", text="Constraint Point Coordinates", emboss=False, icon='VIEW3D')
+
+        # Select Axes Section for Constraint Point 1
         row = box.row(align=True)
         row.label(text="Select Axes (CP1):")
         row.prop(context.scene, "constraint1_x", text="X")
         row.prop(context.scene, "constraint1_y", text="Y")
         row.prop(context.scene, "constraint1_z", text="Z")
-        col = box.column(align=True)
-        col.operator("view3d.submit_constraint_point1", text="Submit Constraint Point 1")
 
-        # Sección "Select Axes" para Constraint Point 2
+        col = box.column(align=True)
+        col.operator("view3d.submit_constraint_point1", text="Submit Constraint Point 1", icon='EXPORT')
+
+        # Select Axes Section for Constraint Point 2
         row = box.row(align=True)
         row.label(text="Select Axes (CP2):")
         row.prop(context.scene, "constraint2_x", text="X")
         row.prop(context.scene, "constraint2_y", text="Y")
         row.prop(context.scene, "constraint2_z", text="Z")
-        
+
         # Constraint Point 2
         col = box.column(align=True)
-        col.operator("view3d.submit_constraint_point2", text="Submit Constraint Point 2")
-        col.operator("view3d.clear_constraint_points", text="Clear Constraint Points")
+        col.operator("view3d.submit_constraint_point2", text="Submit Constraint Point 2", icon='EXPORT')
+        col.operator("view3d.clear_constraint_points", text="Clear Constraint Points", icon='TRASH')
 
-        # Sección "Material Properties"
+        # Material Properties Section
         box = layout.box()
         box.label(text="Material Properties")
 
-        # Cuadros de texto para ingresar los valores
+        # Text boxes to enter values
         box.prop(context.scene, "youngs_modulus", text="Young's Modulus")
         box.prop(context.scene, "poissons_ratio", text="Poisson's Ratio")
 
-        # Sección "Export files"
+        # Export Files Section
         box = layout.box()
-        box.label(text="Export files")
-        
-        # Botón de exportación
+        box.label(text="Export files", icon='EXPORT')
+
+        # Export button
         row = box.row()
-        row.operator("view3d.export_meshes", text="Export files")
+        row.operator("view3d.export_meshes", text="Export files", icon='EXPORT')
+
 
 class VIEW3D_OT_BrowseFolderOperator(Operator, ImportHelper):
     bl_idname = "view3d.browse_folder"
@@ -736,25 +741,115 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_ClearConstraintPointsOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitMainObjectOperator)
 
-    bpy.types.Scene.Contact_point1 = bpy.props.StringProperty()
-    bpy.types.Scene.Contact_point2 = bpy.props.StringProperty()
-    bpy.types.Scene.Constraint_point1 = bpy.props.StringProperty()
-    bpy.types.Scene.Constraint_point2 = bpy.props.StringProperty()
-    bpy.types.Scene.selected_main_object = bpy.props.StringProperty(name="Selected Main Object")
-    bpy.types.Scene.muscle_parameters = bpy.props.StringProperty()
-    bpy.types.Scene.contact_x = bpy.props.BoolProperty(name="Contact X", default=False)
-    bpy.types.Scene.contact_y = bpy.props.BoolProperty(name="Contact Y", default=False)
-    bpy.types.Scene.contact_z = bpy.props.BoolProperty(name="Contact Z", default=False)
-    bpy.types.Scene.constraint1_x = bpy.props.BoolProperty(name="Constraint 1 X", default=False)
-    bpy.types.Scene.constraint1_y = bpy.props.BoolProperty(name="Constraint 1 Y", default=False)
-    bpy.types.Scene.constraint1_z = bpy.props.BoolProperty(name="Constraint 1 Z", default=False)
-    bpy.types.Scene.constraint2_x = bpy.props.BoolProperty(name="Constraint 2 X", default=False)
-    bpy.types.Scene.constraint2_y = bpy.props.BoolProperty(name="Constraint 2 Y", default=False)
-    bpy.types.Scene.constraint2_z = bpy.props.BoolProperty(name="Constraint 2 Z", default=False)
-    bpy.types.Scene.youngs_modulus = bpy.props.FloatProperty(name="Young's Modulus", default=18000, min=0.0, precision=1, step=1, unit='NONE')
-    bpy.types.Scene.poissons_ratio = bpy.props.FloatProperty(name="Poisson's Ratio", default=0.3, min=-1, max=1.0, precision=3, step=1, unit='NONE')
+    bpy.types.Scene.Contact_point1 = bpy.props.StringProperty(
+        name="Contact Point 1",
+        default="",
+        description="Name or identifier for Contact Point 1"
+    )
 
+    bpy.types.Scene.Contact_point2 = bpy.props.StringProperty(
+        name="Contact Point 2",
+        default="",
+        description="Name or identifier for Contact Point 2"
+    )
 
+    bpy.types.Scene.Constraint_point1 = bpy.props.StringProperty(
+        name="Constraint Point 1",
+        default="",
+        description="Name or identifier for Constraint Point 1"
+    )
+
+    bpy.types.Scene.Constraint_point2 = bpy.props.StringProperty(
+        name="Constraint Point 2",
+        default="",
+        description="Name or identifier for Constraint Point 2"
+    )
+
+    bpy.types.Scene.selected_main_object = bpy.props.StringProperty(
+        name="Selected Main Object",
+        default="",
+        description="Name or identifier for the selected main object"
+    )
+
+    bpy.types.Scene.muscle_parameters = bpy.props.StringProperty(
+        name="Muscle Parameters",
+        description="Parameters for muscles in a specific format"
+    )
+
+    bpy.types.Scene.contact_x = bpy.props.BoolProperty(
+        name="Contact X",
+        default=False,
+        description="Enable or disable X axis for contact points"
+    )
+
+    bpy.types.Scene.contact_y = bpy.props.BoolProperty(
+        name="Contact Y",
+        default=False,
+        description="Enable or disable Y axis for contact points"
+    )
+
+    bpy.types.Scene.contact_z = bpy.props.BoolProperty(
+        name="Contact Z",
+        default=False,
+        description="Enable or disable Z axis for contact points"
+    )
+
+    bpy.types.Scene.constraint1_x = bpy.props.BoolProperty(
+        name="Constraint 1 X",
+        default=False,
+        description="Enable or disable X axis for Constraint Point 1"
+    )
+
+    bpy.types.Scene.constraint1_y = bpy.props.BoolProperty(
+        name="Constraint 1 Y",
+        default=False,
+        description="Enable or disable Y axis for Constraint Point 1"
+    )
+
+    bpy.types.Scene.constraint1_z = bpy.props.BoolProperty(
+        name="Constraint 1 Z",
+        default=False,
+        description="Enable or disable Z axis for Constraint Point 1"
+    )
+
+    bpy.types.Scene.constraint2_x = bpy.props.BoolProperty(
+        name="Constraint 2 X",
+        default=False,
+        description="Enable or disable X axis for Constraint Point 2"
+    )
+
+    bpy.types.Scene.constraint2_y = bpy.props.BoolProperty(
+        name="Constraint 2 Y",
+        default=False,
+        description="Enable or disable Y axis for Constraint Point 2"
+    )
+
+    bpy.types.Scene.constraint2_z = bpy.props.BoolProperty(
+        name="Constraint 2 Z",
+        default=False,
+        description="Enable or disable Z axis for Constraint Point 2"
+    )
+
+    bpy.types.Scene.youngs_modulus = bpy.props.FloatProperty(
+        name="Young's Modulus",
+        default=18000,
+        min=0.0,
+        precision=1,
+        step=1,
+        unit='NONE',
+        description="Young's modulus value for material"
+    )
+
+    bpy.types.Scene.poissons_ratio = bpy.props.FloatProperty(
+        name="Poisson's Ratio",
+        default=0.3,
+        min=-1,
+        max=1.0,
+        precision=3,
+        step=1,
+        unit='NONE',
+        description="Poisson's ratio value for material"
+    )
 
     bpy.types.Scene.selected_folder = StringProperty(
         name="Selected Folder",
@@ -783,6 +878,7 @@ def register():
     bpy.types.Scene.force_value = FloatProperty(
         name="Force Value",
         default=0.0,
+        min=0.0,
         description="Value of the force",
     )
 
