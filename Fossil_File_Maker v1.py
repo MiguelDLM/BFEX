@@ -174,7 +174,11 @@ class VIEW3D_PT_FilePathPanel(bpy.types.Panel):
         row = box.row()
         row.operator("view3d.export_meshes", text="Export files", icon='EXPORT')
         
-        #"Run Fossils button"
+        #Run Fossils
+        row = layout.row()
+        row.prop(context.scene, "display_existing_results", text="Display Existing Results")
+        row.prop(context.scene, "open_results_when_finish", text="Open Results When Finish")
+
         row = layout.row()
         row.operator("view3d.run_fossils", text="Run Fossils", icon='PLAY')
 
@@ -184,6 +188,7 @@ class VIEW3D_OT_BrowseFolderOperator(Operator, ImportHelper):
     bl_idname = "view3d.browse_folder"
     bl_label = "Browse Folder"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Select the folder where files will be stored. If there is any text in the 'Browse Folder' window, delete the text."
 
     def execute(self, context):
         context.scene.selected_folder = self.filepath
@@ -193,6 +198,7 @@ class VIEW3D_OT_CreateFolderOperator(Operator):
     bl_idname = "view3d.create_folder"
     bl_label = "Create Folder"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Create a folder and collection using the chosen name."
 
     def execute(self, context):
         file_path = bpy.path.abspath(context.scene.selected_folder)
@@ -220,6 +226,7 @@ class VIEW3D_OT_SubmitMainObjectOperator(Operator):
     bl_idname = "view3d.submit_object"
     bl_label = "Submit Object"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Select one object before clicking here. This button stores the name of the current active object as the main bone/mesh to be used in the FEA."
 
     def execute(self, context):
         active_object = bpy.context.active_object
@@ -237,6 +244,8 @@ class VIEW3D_OT_RotateElementsOperator(bpy.types.Operator):
     bl_idname = "view3d.rotate_elements"
     bl_label = "Rotate Elements"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Rotate objects, changing the Y and Z axes to match other coordinate systems. Use with caution, as it affects the orientation of the objects. Make sure you are certain about the desired orientation before clicking."
+
 
     def execute(self, context):
         set_object_mode(context.active_object, 'OBJECT')
@@ -254,6 +263,8 @@ class VIEW3D_OT_RestoreOrientationAxesOperator(bpy.types.Operator):
     bl_idname = "view3d.restore_orientation_axes"
     bl_label = "Restore Orientation Axes"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Restore the orientation of the axes. Click it only if needed or after exporting the files"
+
 
     def execute(self, context):
         set_object_mode(context.active_object, 'OBJECT')
@@ -270,6 +281,9 @@ class VIEW3D_OT_StartSelectionOperator(Operator):
     bl_idname = "view3d.start_selection"
     bl_label = "Start Selection"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Switches to Edit Mode and activates the Lasso Select tool. Ensure that the active object is the one you want to use for creating the sub-mesh. Be cautious, as this operation subtracts the sub-mesh from the active object."
+
+
 
     def execute(self, context):
         # Cambiar a modo de edición y activar la herramienta "lasso select" con "face select"
@@ -286,6 +300,9 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
     bl_idname = "view3d.submit_selection"
     bl_label = "Submit Selection"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Creates a sub-mesh from the selected surface and stores it in the specified collection."
+
+
 
     def execute(self, context):
         # Salir del modo de edición y volver a la vista de objeto
@@ -329,6 +346,8 @@ class VIEW3D_OT_SelectFocalPointOperator(Operator):
     bl_idname = "view3d.select_focal_point"
     bl_label = "Select Focal Point"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Switches to Edit Mode and Vertex selection, allowing you to select a point to be used as the force direction for the previously created muscle attachment area."
+
 
     def execute(self, context):
         bpy.ops.object.mode_set(mode='EDIT')
@@ -343,6 +362,8 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
     bl_idname = "view3d.submit_focal_point"
     bl_label = "Submit Focal Point"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Stores the coordinates of the selected vertex/point in a variable."
+
 
     def execute(self, context):
     
@@ -362,6 +383,8 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
     bl_idname = "view3d.submit_parameters"
     bl_label = "Submit Parameters"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Stores the parameters (Name of the last sub-mesh created, Focal Point, Force, and loading scenario) in a dictionary."
+
 
     def execute(self, context):
         # Obtener el nombre de la última submalla extraída
@@ -405,6 +428,7 @@ class VIEW3D_OT_DeleteLastMuscleAttachmentOperator(Operator):
     bl_idname = "view3d.delete_last_muscle_attachment"
     bl_label = "Delete Last Muscle Attachment"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Deletes the last mesh and parameters stored in a dictionary. Be aware, if you click it before submitting the parameters, the last input parameters will be deleted along with the last sub-mesh created. WARNING: Use with caution!"
 
     def execute(self, context):
         # Obtener el diccionario existente o crear uno nuevo
@@ -439,6 +463,9 @@ class VIEW3D_OT_SelectContactPointOperator(Operator):
     bl_idname = "view3d.select_contact_point"
     bl_label = "Select Contact Point"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Switches to Edit Mode and Vertex selection, enabling you to select a point to be used as a contact point where the force will be applied during the FEA."
+
+
 
     def execute(self, context):
         # Cambiar a modo de edición y activar la herramienta "vertex select"
@@ -455,6 +482,7 @@ class VIEW3D_OT_SubmitContactPointOperator1(bpy.types.Operator):
     bl_idname = "view3d.submit_contact_point1"
     bl_label = "Submit Contact Point 1"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Stores the coordinates of the selected vertex/point in a variable to be used as contact point"
 
     def execute(self, context):
         active_object = bpy.context.active_object
@@ -480,6 +508,8 @@ class VIEW3D_OT_SubmitContactPointOperator2(bpy.types.Operator):
     bl_idname = "view3d.submit_contact_point2"
     bl_label = "Submit Contact Point 2"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Only needed if you want to use 2 contact points. Otherwise, you may skip this step. Stores the coordinates of the selected vertex/point in a variable to be used as a contact point."
+
 
     def execute(self, context):
         active_object = bpy.context.active_object
@@ -505,6 +535,7 @@ class VIEW3D_OT_ClearContactPointsOperator(Operator):
     bl_idname = "view3d.clear_contact_points"
     bl_label = "Clear Contact Points"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Delete contact points stored"
 
     def execute(self, context):
         # Limpiar las variables de Contact Point 1 y Contact Point 2
@@ -517,12 +548,13 @@ class VIEW3D_OT_SelectConstraintPointOperator(Operator):
     bl_idname = "view3d.select_constraint_point"
     bl_label = "Select Constraint Point"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Switches to Edit Mode and Vertex selection, enabling you to select a point to be used as a constraint point where the object will be fixed during the FEA."
 
-    def execute(self, context):
-        # Cambiar a modo de edición y activar la herramienta "vertex select"
+
+    def execute(self, context):       
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.context.tool_settings.mesh_select_mode[0] = True  # Modo de selección de cara
+        bpy.context.tool_settings.mesh_select_mode[0] = True 
         bpy.context.tool_settings.mesh_select_mode[1] = False
         bpy.context.tool_settings.mesh_select_mode[2] = False
 
@@ -532,6 +564,7 @@ class VIEW3D_OT_SubmitConstraintPointOperator1(Operator):
     bl_idname = "view3d.submit_constraint_point1"
     bl_label = "Submit Constraint Point 1"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Stores the coordinates of the selected vertex/point in a variable to be used as constraint point"
 
     def execute(self, context):
         active_object = bpy.context.active_object
@@ -556,6 +589,8 @@ class VIEW3D_OT_SubmitConstraintPointOperator2(Operator):
     bl_idname = "view3d.submit_constraint_point2"
     bl_label = "Submit Constraint Point 2"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Only needed if you want to use 2 constraint points. Otherwise, you may skip this step. Stores the coordinates of the selected vertex/point in a variable to be used as a constraint point."
+
 
     def execute(self, context):
         active_object = bpy.context.active_object
@@ -580,6 +615,7 @@ class VIEW3D_OT_ClearConstraintPointsOperator(Operator):
     bl_idname = "view3d.clear_constraint_points"
     bl_label = "Clear Constraint Points"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Delete constraint points stored"
 
     def execute(self, context):
         # Limpiar las variables de Constraint Point 1 y Constraint Point 2
@@ -592,6 +628,7 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
     bl_idname = "view3d.export_meshes"
     bl_label = "Export Meshes"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Export all the files required for the FEA in Fossils. This includes the main mesh/bone, sub-meshes of the main object/bone (Attachment muscle areas), and a Python file with the parameters inputted by the user."
 
     def execute(self, context):
         file_path = bpy.path.abspath(context.scene.selected_folder)
@@ -762,10 +799,12 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
     bl_idname = "view3d.run_fossils"
     bl_label = "Run Fossils"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Run Fossils with the script.py file stored in the selected folder in Browse folder option"
 
     def execute(self, context):
         # Ruta al archivo Python
-        python_file_path = os.path.join(context.scene.selected_folder, "script.py")
+        python_file_path = bpy.path.abspath(context.scene.selected_folder)
+        python_file_path = os.path.join(python_file_path.replace("\\", "/"), "script.py")
 
         # Carpeta del usuario
         user_folder = os.path.expanduser("~")
@@ -773,16 +812,32 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
         # Ruta al ejecutable del programa externo
         external_program_path = os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "fossils.exe")
 
+        args = [external_program_path, python_file_path]
+
+        if context.scene.display_existing_results:
+            args.append("--post")
+
+        if not context.scene.open_results_when_finish:
+            args.append("--nogui")
+
         try:
-            # Ejecutar el programa externo con el archivo Python específico
-            subprocess.run([external_program_path, python_file_path], check=True, cwd=os.path.dirname(external_program_path))
-            self.report({'INFO'}, f"External program '{external_program_path}' executed successfully with Python file: '{python_file_path}'")
-        except subprocess.CalledProcessError as e:
-            self.report({'ERROR'}, f"Error executing external program: {e}")
+            # Ejecutar el programa externo con los argumentos específicos
+            subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE)
+            self.report({'INFO'}, f"External program '{external_program_path}' started successfully with Python file: '{python_file_path}'")
+        except Exception as e:
+            self.report({'ERROR'}, f"Error starting external program: {e} be sure that fossils is instaled in ..\AppData\Local\Programs\Fossils\fossils.exe and the selected folder cointain the script.py file and folder with sub-meshes")
 
         return {'FINISHED'}
 
 
+
+def update_checkboxes(self, context):
+    if context.scene.display_existing_results:
+        context.scene.open_results_when_finish = False
+
+    if context.scene.open_results_when_finish:
+        context.scene.display_existing_results = False
+        
 # Registro de clases y propiedades
 def register():
     bpy.utils.register_class(VIEW3D_PT_FilePathPanel)
@@ -973,6 +1028,18 @@ def register():
     )
 
     bpy.types.Scene.contact_points = CollectionProperty(type=bpy.types.PropertyGroup)
+    
+    bpy.types.Scene.display_existing_results = bpy.props.BoolProperty(
+        name="Display Existing Results",
+        default=False,
+        update=update_checkboxes
+    )
+
+    bpy.types.Scene.open_results_when_finish = bpy.props.BoolProperty(
+        name="Open Results When Finish",
+        default=False,
+        update=update_checkboxes
+    )
 
 # Eliminación de clases y propiedades
 def unregister():
@@ -1015,10 +1082,11 @@ def unregister():
     del bpy.types.Scene.constraint1_x
     del bpy.types.Scene.constraint1_y
     del bpy.types.Scene.constraint1_z
-
     del bpy.types.Scene.constraint2_x
     del bpy.types.Scene.constraint2_y
     del bpy.types.Scene.constraint2_z
+    del bpy.types.Scene.display_existing_results
+    del bpy.types.Scene.open_results_when_finish
 
 if __name__ == "__main__":
     register()
