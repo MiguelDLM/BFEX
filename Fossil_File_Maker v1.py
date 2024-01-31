@@ -181,6 +181,7 @@ class VIEW3D_PT_FilePathPanel(bpy.types.Panel):
 
         row = layout.row()
         row.operator("view3d.run_fossils", text="Run Fossils", icon='PLAY')
+        row.operator("view3d.open_fea_results_folder", text="Open FEA Results Folder", icon='FILE_FOLDER')
 
 
 
@@ -799,7 +800,7 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
     bl_idname = "view3d.run_fossils"
     bl_label = "Run Fossils"
     bl_options = {'REGISTER', 'UNDO'}
-    bl_description = "Run Fossils with the script.py file stored in the selected folder in Browse folder option"
+    bl_description = "Run Fossils with the script.py file stored in the selected folder in Browse folder option. If fossils open and crash, check the correct location and names of the files. script.py is te default name"
 
     def execute(self, context):
         # Ruta al archivo Python
@@ -829,6 +830,27 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class VIEW3D_OT_OpenFEAResultsFolderOperator(bpy.types.Operator):
+    bl_idname = "view3d.open_fea_results_folder"
+    bl_label = "Open FEA Results Folder"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Open the folder where FEA results are stored"
+
+    def execute(self, context):
+        # Carpeta del usuario
+        user_folder = os.path.expanduser("~")
+
+        # Ruta a la carpeta de resultados de FEA
+        fea_results_folder = os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "workspace")
+
+        try:
+            # Abrir la carpeta en el explorador de archivos
+            subprocess.run(['explorer', fea_results_folder], check=True)
+            self.report({'INFO'}, f"Opened FEA results folder: {fea_results_folder}")
+        except subprocess.CalledProcessError as e:
+            self.report({'ERROR'}, f"Error opening FEA results folder: {e}")
+
+        return {'FINISHED'}
 
 
 def update_checkboxes(self, context):
@@ -862,6 +884,7 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_SubmitMainObjectOperator)
     bpy.utils.register_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
     bpy.utils.register_class(VIEW3D_OT_RunFossilsOperator)
+    bpy.utils.register_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
 
     bpy.types.Scene.Contact_point1 = bpy.props.StringProperty(
         name="Contact Point 1",
@@ -1065,6 +1088,7 @@ def unregister():
     bpy.utils.unregister_class(VIEW3D_OT_SubmitMainObjectOperator)
     bpy.utils.unregister_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
     bpy.utils.unregister_class(VIEW3D_OT_RunExternalProgramOperator)
+    bpy.utils.unregister_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
 
     del bpy.types.Scene.selected_folder
     del bpy.types.Scene.new_folder_name
