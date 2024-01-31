@@ -13,6 +13,7 @@ import math
 import json
 import re
 import subprocess
+import ctypes
 
 # Utilidades
 def set_object_mode(obj, mode):
@@ -20,8 +21,8 @@ def set_object_mode(obj, mode):
     bpy.ops.object.mode_set(mode=mode)
 
 # Interface Panel
-class VIEW3D_PT_FilePathPanel(bpy.types.Panel):
-    bl_idname = "PT_FilePathPanel"
+class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_FilePathPanel_PT"
     bl_label = "File Path"
     bl_category = "FossilFilesGenerator"
     bl_space_type = "VIEW_3D"
@@ -805,7 +806,7 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
     def execute(self, context):
         # Ruta al archivo Python
         python_file_path = bpy.path.abspath(context.scene.selected_folder)
-        python_file_path = os.path.join(python_file_path.replace("\\", "/"), "script.py")
+        python_file_path = os.path.join(python_file_path, "script.py")
 
         # Carpeta del usuario
         user_folder = os.path.expanduser("~")
@@ -813,7 +814,7 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
         # Ruta al ejecutable del programa externo
         external_program_path = os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "fossils.exe")
 
-        args = [external_program_path, python_file_path]
+        args = [python_file_path]
 
         if context.scene.display_existing_results:
             args.append("--post")
@@ -823,7 +824,8 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
 
         try:
             # Ejecutar el programa externo con los argumentos específicos
-            subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE)
+            args = ' '.join(args)
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", external_program_path, args, python_file_path, 1)
             self.report({'INFO'}, f"External program '{external_program_path}' started successfully with Python file: '{python_file_path}'")
         except Exception as e:
             self.report({'ERROR'}, f"Error starting external program: {e} be sure that fossils is instaled in ..\AppData\Local\Programs\Fossils\fossils.exe and the selected folder cointain the script.py file and folder with sub-meshes")
@@ -834,21 +836,31 @@ class VIEW3D_OT_OpenFEAResultsFolderOperator(bpy.types.Operator):
     bl_idname = "view3d.open_fea_results_folder"
     bl_label = "Open FEA Results Folder"
     bl_options = {'REGISTER', 'UNDO'}
-    bl_description = "Open the folder where FEA results are stored"
+    bl_description = "Open the folder containing FEA results"
 
     def execute(self, context):
         # Carpeta del usuario
         user_folder = os.path.expanduser("~")
 
-        # Ruta a la carpeta de resultados de FEA
-        fea_results_folder = os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "workspace")
+        # Rutas posibles de las carpetas de resultados de FEA
+        fea_results_folders = [
+            os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "_internal", "workspace"),
+            os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "workspace")
+        ]
 
-        try:
-            # Abrir la carpeta en el explorador de archivos
-            subprocess.run(['explorer', fea_results_folder], check=True)
-            self.report({'INFO'}, f"Opened FEA results folder: {fea_results_folder}")
-        except subprocess.CalledProcessError as e:
-            self.report({'ERROR'}, f"Error opening FEA results folder: {e}")
+        # Verificar la existencia de las carpetas
+        found_folder = None
+        for fea_results_folder in fea_results_folders:
+            if os.path.exists(fea_results_folder):
+                found_folder = fea_results_folder
+                break
+
+        # Abrir la carpeta encontrada o emitir un mensaje de error
+        if found_folder:
+            bpy.ops.wm.path_open(filepath=found_folder)
+            self.report({'INFO'}, f"FEA results folder opened: {found_folder}")
+        else:
+            self.report({'ERROR'}, "FEA results folder not found. Verify Fossils is installed in C:\Users\~username\Appdata\Local\Programs or you have run a FEA before")
 
         return {'FINISHED'}
 
@@ -862,7 +874,7 @@ def update_checkboxes(self, context):
         
 # Registro de clases y propiedades
 def register():
-    bpy.utils.register_class(VIEW3D_PT_FilePathPanel)
+    bpy.utils.register_class(VIEW3D_PT_FilePathPanel_PT)
     bpy.utils.register_class(VIEW3D_OT_StartSelectionOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitSelectionOperator)
     bpy.utils.register_class(VIEW3D_OT_BrowseFolderOperator)
@@ -1066,7 +1078,7 @@ def register():
 
 # Eliminación de clases y propiedades
 def unregister():
-    bpy.utils.unregister_class(VIEW3D_PT_FilePathPanel)
+    bpy.utils.unregister_class(VIEW3D_PT_FilePathPanel_PT)
     bpy.utils.unregister_class(VIEW3D_OT_StartSelectionOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitSelectionOperator)
     bpy.utils.unregister_class(VIEW3D_OT_BrowseFolderOperator)
