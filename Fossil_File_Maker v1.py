@@ -1,7 +1,14 @@
 bl_info = {
     "name": "Fossil File generator",
     "blender": (2, 80, 0),
-    "category": "Object",
+    "category": "Mesh",
+    "author": "E. Miguel Diaz de Leon-Munoz",
+    "description": "An Add-on for generating files for Fossil software (Finite Elements Analysis) files in Blender.",
+    "version": (1, 0, 0),
+    "location": "View3D > Tools",
+    "warning": " Before using this add-on, ensure that your meshes are free from errors such as Non-Manifold edges, intersecting faces, etc. We recommend using the 3D-Print add-on for optimal results.",
+    "tracker_url": "https://github.com/MiguelDLM",
+    "support": "COMMUNITY",
 }
 
 import bpy
@@ -15,7 +22,7 @@ import re
 import subprocess
 import ctypes
 
-# Utilidades
+# Utilities 
 def set_object_mode(obj, mode):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode=mode)
@@ -27,7 +34,7 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
     bl_category = "FossilFilesGenerator"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_options = {'HEADER_LAYOUT_EXPAND'}
 
     def draw(self, context):
         layout = self.layout
@@ -179,12 +186,11 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         row = layout.row()
         row.prop(context.scene, "display_existing_results", text="Display Existing Results")
         row.prop(context.scene, "open_results_when_finish", text="Open Results When Finish")
+        row.prop(context.scene, "run_as_admin", text="Run as Admin")
 
         row = layout.row()
         row.operator("view3d.run_fossils", text="Run Fossils", icon='PLAY')
         row.operator("view3d.open_fea_results_folder", text="Open FEA Results Folder", icon='FILE_FOLDER')
-
-
 
 class VIEW3D_OT_BrowseFolderOperator(Operator, ImportHelper):
     bl_idname = "view3d.browse_folder"
@@ -823,14 +829,22 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
             args.append("--nogui")
 
         try:
-            # Ejecutar el programa externo con los argumentos específicos
-            args = ' '.join(args)
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", external_program_path, args, python_file_path, 1)
+            # Verificar si se debe ejecutar como administrador
+            if context.scene.run_as_admin:
+                # Ejecutar el programa externo con privilegios de administrador
+                args = ' '.join(args)
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", external_program_path, args, python_file_path, 1)
+            else:
+                # Ejecutar el programa externo sin privilegios de administrador
+                subprocess.Popen([external_program_path] + args, creationflags=subprocess.CREATE_NEW_CONSOLE)
+
+                
             self.report({'INFO'}, f"External program '{external_program_path}' started successfully with Python file: '{python_file_path}'")
         except Exception as e:
             self.report({'ERROR'}, f"Error starting external program: {e} be sure that fossils is instaled in ..\AppData\Local\Programs\Fossils\fossils.exe and the selected folder cointain the script.py file and folder with sub-meshes")
 
         return {'FINISHED'}
+
 
 class VIEW3D_OT_OpenFEAResultsFolderOperator(bpy.types.Operator):
     bl_idname = "view3d.open_fea_results_folder"
@@ -860,7 +874,7 @@ class VIEW3D_OT_OpenFEAResultsFolderOperator(bpy.types.Operator):
             bpy.ops.wm.path_open(filepath=found_folder)
             self.report({'INFO'}, f"FEA results folder opened: {found_folder}")
         else:
-            self.report({'ERROR'}, "FEA results folder not found. Verify Fossils is installed in C:\Users\~username\Appdata\Local\Programs or you have run a FEA before")
+            self.report({'ERROR'}, f"FEA results folder not found. Verify Fossils is installed in {user_folder}\Appdata\Local\Programs or you have run a FEA before")
 
         return {'FINISHED'}
 
@@ -993,8 +1007,7 @@ def register():
         min=0.0,
         precision=1,
         step=1,
-        unit='NONE',
-        description="Young's modulus value for material"
+        description="Young's modulus value for material in MPa"
     )
 
     bpy.types.Scene.poissons_ratio = bpy.props.FloatProperty(
@@ -1036,7 +1049,7 @@ def register():
         name="Force Value",
         default=0.0,
         min=0.0,
-        description="Value of the force",
+        description="Value of the force in Newtons",
     )
 
     bpy.types.Scene.selected_option = EnumProperty(
@@ -1075,6 +1088,12 @@ def register():
         default=False,
         update=update_checkboxes
     )
+    
+    bpy.types.Scene.run_as_admin = bpy.props.BoolProperty(
+        name="Open Results When Finish",
+        default=False,
+        update=update_checkboxes
+    )   
 
 # Eliminación de clases y propiedades
 def unregister():
