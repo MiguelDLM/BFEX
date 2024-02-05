@@ -923,6 +923,10 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
 
     def execute(self, context):
         visual_elements_collection = bpy.data.collections.get("Visual elements")
+        # Verificar si la colección existe antes de intentar limpiarla
+        if visual_elements_collection:
+            # Eliminar objetos existentes en la colección
+            self.clear_collection_objects(visual_elements_collection)
         
         if context.scene.show_attachment_areas:
             # Obtener la colección especificada
@@ -1042,6 +1046,10 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
             print(f"Colección '{collection_name}' no encontrada.")
 
         return cone
+        
+    def clear_collection_objects(self, collection):
+        for obj in collection.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
 
 
 #Logic of fossil parameters chechboxes        
