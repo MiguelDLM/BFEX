@@ -885,9 +885,12 @@ class VIEW3D_OT_OpenFEAResultsFolderOperator(bpy.types.Operator):
     def execute(self, context):
         # Carpeta del usuario
         user_folder = os.path.expanduser("~")
+        file_path = bpy.path.abspath(context.scene.selected_folder)
+        new_folder_name = context.scene.new_folder_name.lower()
 
         # Rutas posibles de las carpetas de resultados de FEA
         fea_results_folders = [
+            os.path.join(file_path, "workspace",new_folder_name+"_script"),
             os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "_internal", "workspace"),
             os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "workspace")
         ]
