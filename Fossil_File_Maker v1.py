@@ -21,11 +21,21 @@ import json
 import re
 import subprocess
 import ctypes
+import mathutils
+import random
+
 
 # Utilities 
 def set_object_mode(obj, mode):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode=mode)
+    
+def get_transformed_coordinates(obj, coordinates):
+
+    matrix_world = obj.matrix_world
+    original_vector = mathutils.Vector(coordinates)
+    transformed_vector = matrix_world @ original_vector
+    return transformed_vector.x, transformed_vector.y, transformed_vector.z
 
 # Interface Panel
 class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
@@ -191,7 +201,26 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         row = layout.row()
         row.operator("view3d.run_fossils", text="Run Fossils", icon='PLAY')
         row.operator("view3d.open_fea_results_folder", text="Open FEA Results Folder", icon='FILE_FOLDER')
+        
+        # Visual elements section
+        box = layout.box()
+        box.label(text="Visual elements")
 
+        # Checkbox: Show Constraint Points y Show Contact Points
+        row = box.row()
+        row.prop(context.scene, "show_constraint_points", text="Show Constraint Points")
+        row.prop(context.scene, "show_contact_points", text="Show Contact Points")
+
+        # Checkbox: Show Attachment Areas y Show Force Directions
+        row = box.row()
+        row.prop(context.scene, "show_attachment_areas", text="Show Attachment Areas")     
+        row.prop(context.scene, "show_force_directions", text="Show Force Directions")
+
+        # Botón Apply
+        row = box.row()
+        row.operator("view3d.apply_forces_parameters", text="Apply")
+
+    
 class VIEW3D_OT_BrowseFolderOperator(Operator, ImportHelper):
     bl_idname = "view3d.browse_folder"
     bl_label = "Browse Folder"
@@ -254,12 +283,10 @@ class VIEW3D_OT_RotateElementsOperator(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
     bl_description = "Rotate objects, changing the Y and Z axes to match other coordinate systems. Use with caution, as it affects the orientation of the objects. Make sure you are certain about the desired orientation before clicking."
 
-
     def execute(self, context):
-        set_object_mode(context.active_object, 'OBJECT')
-
         for obj in bpy.data.objects:
             if obj.type == 'MESH':
+                self.set_object_mode(obj, 'OBJECT')
                 obj.rotation_euler.rotate_axis("X", math.radians(-90))
                 obj.rotation_euler.rotate_axis("Z", math.radians(-180))
 
@@ -379,11 +406,13 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
         vertices = [v.co for v in context.active_object.data.vertices if v.select]
 
         if vertices:
-            context.scene.focal_point_coordinates = f"{vertices[0][0]:.3f},{vertices[0][1]:.3f},{vertices[0][2]:.3f}"
+            x, y, z = vertices[0][0], vertices[0][1], vertices[0][2]
+            context.scene.focal_point_coordinates = f"{x:.3f},{y:.3f},{z:.3f}"
             self.report({'INFO'}, f"Focal Point coordinates: {context.scene.focal_point_coordinates}")
         else:
             context.scene.focal_point_coordinates = ""
             self.report({'ERROR'}, "No vertex selected as Focal Point")
+
 
         return {'FINISHED'}
 
@@ -486,39 +515,33 @@ class VIEW3D_OT_SelectContactPointOperator(Operator):
         return {'FINISHED'}
 
 
-class VIEW3D_OT_SubmitContactPointOperator1(bpy.types.Operator):
+class VIEW3D_OT_SubmitContactPointOperator1(Operator):
     bl_idname = "view3d.submit_contact_point1"
-    bl_label = "Submit Contact Point 1"
+    bl_label = "Submit Contact Point"
     bl_options = {'REGISTER', 'UNDO'}
-    bl_description = "Stores the coordinates of the selected vertex/point in a variable to be used as contact point"
+    bl_description = "Stores the coordinates of the selected vertex/point as Contact Point."
 
     def execute(self, context):
-        active_object = bpy.context.active_object
+        set_object_mode(context.active_object, 'OBJECT')
+        vertices = [v.co for v in context.active_object.data.vertices if v.select]
 
-        if active_object and active_object.mode == 'EDIT':
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-        selected_vertices = [v.co for v in active_object.data.vertices if v.select]
-
-        if selected_vertices:
-            coordinates = selected_vertices[0]
-            coordinates_str = [f"{coordinates[0]:.6f}", f"{coordinates[1]:.6f}", f"{coordinates[2]:.6f}"]
-            bpy.context.scene.Contact_point1 = ", ".join(coordinates_str)
-            bpy.context.scene.contact_point_coordinates = ", ".join(coordinates_str)
-            self.report({'INFO'}, f"Contact Point 1 coordinates: {bpy.context.scene.contact_point_coordinates}")
+        if vertices:
+            x, y, z = get_transformed_coordinates(context.active_object, vertices[0])
+            context.scene.Contact_point1 = f"{x:.6f}, {y:.6f}, {z:.6f}"
+            context.scene.contact_point_coordinates = f"{x:.3f},{y:.3f},{z:.3f}"
+            self.report({'INFO'}, f"Contact Point coordinates: {context.scene.contact_point_coordinates}")
         else:
-            self.report({'ERROR'}, "No vertex selected.")
+            context.scene.contact_point_coordinates = ""
+            self.report({'ERROR'}, "No vertex selected as Contact Point")
 
         return {'FINISHED'}
 
-
-class VIEW3D_OT_SubmitContactPointOperator2(bpy.types.Operator):
+class VIEW3D_OT_SubmitContactPointOperator2(Operator):
     bl_idname = "view3d.submit_contact_point2"
     bl_label = "Submit Contact Point 2"
     bl_options = {'REGISTER', 'UNDO'}
     bl_description = "Only needed if you want to use 2 contact points. Otherwise, you may skip this step. Stores the coordinates of the selected vertex/point in a variable to be used as a contact point."
 
-
     def execute(self, context):
         active_object = bpy.context.active_object
 
@@ -529,10 +552,11 @@ class VIEW3D_OT_SubmitContactPointOperator2(bpy.types.Operator):
 
         if selected_vertices:
             coordinates = selected_vertices[0]
-            coordinates_str = [f"{coordinates[0]:.6f}", f"{coordinates[1]:.6f}", f"{coordinates[2]:.6f}"]
-            bpy.context.scene.Contact_point2 = ", ".join(coordinates_str)
-            bpy.context.scene.contact_point_coordinates = ", ".join(coordinates_str)
-            self.report({'INFO'}, f"Contact Point 2 coordinates: {bpy.context.scene.contact_point_coordinates}")
+            x, y, z = get_transformed_coordinates(active_object, coordinates)
+
+            context.scene.Contact_point2 = f"{x:.6f}, {y:.6f}, {z:.6f}"
+            context.scene.contact_point_coordinates = f"{x:.6f}, {y:.6f}, {z:.6f}"
+            self.report({'INFO'}, f"Contact Point 2 coordinates: {context.scene.contact_point_coordinates}")
         else:
             self.report({'ERROR'}, "No vertex selected.")
 
@@ -584,10 +608,11 @@ class VIEW3D_OT_SubmitConstraintPointOperator1(Operator):
 
         if selected_vertices:
             coordinates = selected_vertices[0]
-            coordinates_str = [f"{coordinates[0]:.6f}", f"{coordinates[1]:.6f}", f"{coordinates[2]:.6f}"]
-            bpy.context.scene.Constraint_point1 = ", ".join(coordinates_str)
-            bpy.context.scene.constraint_point_coordinates = ", ".join(coordinates_str)
-            self.report({'INFO'}, f"Constraint Point 1 coordinates: {bpy.context.scene.constraint_point_coordinates }")
+            x, y, z = get_transformed_coordinates(active_object, coordinates)
+
+            context.scene.Constraint_point1 = f"{x:.6f}, {y:.6f}, {z:.6f}"
+            context.scene.constraint_point_coordinates = f"{x:.6f}, {y:.6f}, {z:.6f}"
+            self.report({'INFO'}, f"Constraint Point 1 coordinates: {context.scene.constraint_point_coordinates}")
         else:
             self.report({'ERROR'}, "No vertex selected.")
 
@@ -599,7 +624,6 @@ class VIEW3D_OT_SubmitConstraintPointOperator2(Operator):
     bl_options = {'REGISTER', 'UNDO'}
     bl_description = "Only needed if you want to use 2 constraint points. Otherwise, you may skip this step. Stores the coordinates of the selected vertex/point in a variable to be used as a constraint point."
 
-
     def execute(self, context):
         active_object = bpy.context.active_object
 
@@ -610,10 +634,11 @@ class VIEW3D_OT_SubmitConstraintPointOperator2(Operator):
 
         if selected_vertices:
             coordinates = selected_vertices[0]
-            coordinates_str = [f"{coordinates[0]:.6f}", f"{coordinates[1]:.6f}", f"{coordinates[2]:.6f}"]
-            bpy.context.scene.Constraint_point2 = ", ".join(coordinates_str)
-            bpy.context.scene.constraint_point_coordinates = ", ".join(coordinates_str)
-            self.report({'INFO'}, f"Constraint Point 2 coordinates: {bpy.context.scene.constraint_point_coordinates }")
+            x, y, z = get_transformed_coordinates(active_object, coordinates)
+
+            context.scene.Constraint_point2 = f"{x:.6f}, {y:.6f}, {z:.6f}"
+            context.scene.constraint_point_coordinates = f"{x:.6f}, {y:.6f}, {z:.6f}"
+            self.report({'INFO'}, f"Constraint Point 2 coordinates: {context.scene.constraint_point_coordinates}")
         else:
             self.report({'ERROR'}, "No vertex selected.")
 
@@ -878,13 +903,148 @@ class VIEW3D_OT_OpenFEAResultsFolderOperator(bpy.types.Operator):
 
         return {'FINISHED'}
 
+def generate_random_color():
+    return (random.random(), random.random(), random.random(), 1.0)
 
+
+class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
+    bl_idname = "view3d.apply_forces_parameters"
+    bl_label = "Apply Forces and Parameters"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+
+    def execute(self, context):
+        visual_elements_collection = bpy.data.collections.get("Visual elements")
+        
+        if context.scene.show_attachment_areas:
+            # Obtener la colección especificada
+            attachment_collection = bpy.data.collections.get(context.scene.new_folder_name)
+
+            if attachment_collection:
+                for obj in attachment_collection.objects:
+                    # Asignar un nuevo material a cada submalla
+                    if obj.type == 'MESH':
+                        random_color = generate_random_color()
+                        
+                        # Crear un nuevo material
+                        new_material = bpy.data.materials.new(name="AttachmentMaterial")
+                        new_material.diffuse_color = random_color
+                        
+                        # Asignar el material a la submalla
+                        if len(obj.data.materials) > 0:
+                            obj.data.materials[0] = new_material
+                        else:
+                            obj.data.materials.append(new_material)
+
+        if not visual_elements_collection:
+            visual_elements_collection = bpy.data.collections.new("Visual elements")
+            bpy.context.scene.collection.children.link(visual_elements_collection)
+
+        if context.scene.show_force_directions:
+            # Obtener las coordenadas del diccionario de parámetros musculares
+            muscle_parameters = context.scene.get("muscle_parameters", [])
+            muscle_parameters = json.loads(muscle_parameters)
+            # Crear los materiales con colores específicos
+            red_material = bpy.data.materials.new(name="RedMaterial")
+            red_material.diffuse_color = (1, 0, 0, 1)  # RGB y alpha
+
+            yellow_material = bpy.data.materials.new(name="YellowMaterial")
+            yellow_material.diffuse_color = (1, 1, 0, 1)  # RGB y alpha
+
+            blue_material = bpy.data.materials.new(name="BlueMaterial")
+            blue_material.diffuse_color = (0, 0, 1, 1)  # RGB y alpha
+
+            for entry in muscle_parameters:
+                focal_point_coords = entry.get('focalpt', [])
+                
+                # Comprobar si las coordenadas están en el antiguo formato
+                if isinstance(focal_point_coords, list):
+                    coords = focal_point_coords
+                else:
+                    coords = [focal_point_coords.get('x', 0.0), focal_point_coords.get('y', 0.0), focal_point_coords.get('z', 0.0)]
+
+                focal_point_name = entry.get('file', '')
+                focal_point_name_clean = focal_point_name.replace(f"f'{{path}}/", "").replace(".stl'", "")
+                self.create_combined_object_at_location(coords, visual_elements_collection, f"ForceDirection_{focal_point_name_clean}",material=blue_material)
+
+        if context.scene.show_constraint_points:
+            constraint_point1_coords = [float(coord) for coord in context.scene.Constraint_point1.split(",")]
+            self.create_combined_object_at_location(constraint_point1_coords, visual_elements_collection, "ConstraintPoint1", orientation='RIGHT', material=yellow_material)
+
+            if context.scene.Constraint_point2:
+                constraint_point2_coords = [float(coord) for coord in context.scene.Constraint_point2.split(",")]
+                self.create_combined_object_at_location(constraint_point2_coords, visual_elements_collection, "ConstraintPoint2", orientation='RIGHT', material=yellow_material)
+
+        if context.scene.show_contact_points:
+            contact_point1_coords = [float(coord) for coord in context.scene.Contact_point1.split(",")]
+            self.create_combined_object_at_location(contact_point1_coords, visual_elements_collection, "ContactPoint1", orientation='DOWN', material=red_material)
+
+            if context.scene.Contact_point2:
+                contact_point2_coords = [float(coord) for coord in context.scene.Contact_point2.split(",")]
+                self.create_combined_object_at_location(contact_point2_coords, visual_elements_collection, "ContactPoint2", orientation='DOWN', material=red_material)
+
+        return {'FINISHED'}
+
+    def create_combined_object_at_location(self, location_coords, collection, object_name, orientation='DOWN', material=None ):
+        if location_coords:
+            # Crear el cono
+            bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=1, depth=1, location=location_coords, rotation=(0, 0, math.radians(90)))
+            cone = bpy.context.object
+            cone.name = object_name
+
+            # Crear el cilindro
+            bpy.ops.mesh.primitive_cylinder_add(radius=0.5, depth=2, location=(location_coords[0], location_coords[1], location_coords[2] - 1), rotation=(0, 0, 0))
+            cylinder = bpy.context.object
+            cylinder.name = object_name + "_Cylinder"
+
+            # Unir el cono y el cilindro
+            bpy.context.view_layer.objects.active = cone
+            bpy.ops.object.select_all(action='DESELECT')
+            cone.select_set(True)
+            cylinder.select_set(True)
+            bpy.context.view_layer.objects.active = cone
+            bpy.ops.object.join()
+
+            # Aplicar la rotación según la orientación
+            if orientation == 'DOWN':
+                cone.rotation_euler = (math.radians(90), 0, 0)
+            elif orientation == 'UP':
+                cone.rotation_euler = (math.radians(-90), 0, 0)
+            elif orientation == 'RIGHT':
+                cone.rotation_euler = (0, math.radians(180), 0)
+
+            # Vincular el objeto combinado a la nueva colección
+            collection.objects.link(cone)
+
+            # Eliminar el objeto combinado de la colección original si estaba en otra colección
+            for old_collection in cone.users_collection:
+                if old_collection.name != "Visual elements":
+                    old_collection.objects.unlink(cone)
+                    
+            if material:
+                cone.data.materials.append(material)
+                
+    def move_collection_to_top(self, collection_name):
+        collection = bpy.data.collections.get(collection_name)
+
+        if collection:
+            bpy.context.scene.collection.children.unlink(collection)
+            bpy.context.scene.collection.children.link(collection)
+        else:
+            print(f"Colección '{collection_name}' no encontrada.")
+
+        return cone
+
+
+#Logic of fossil parameters chechboxes        
 def update_checkboxes(self, context):
     if context.scene.display_existing_results:
         context.scene.open_results_when_finish = False
 
     if context.scene.open_results_when_finish:
         context.scene.display_existing_results = False
+        
+    
         
 # Registro de clases y propiedades
 def register():
@@ -911,6 +1071,7 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
     bpy.utils.register_class(VIEW3D_OT_RunFossilsOperator)
     bpy.utils.register_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
+    bpy.utils.register_class(VIEW3D_OT_ApplyForcesParametersOperator)
 
     bpy.types.Scene.Contact_point1 = bpy.props.StringProperty(
         name="Contact Point 1",
@@ -1094,7 +1255,31 @@ def register():
         default=False,
         update=update_checkboxes
     )   
+    
+    bpy.types.Scene.show_constraint_points = bpy.props.BoolProperty(
+        name="Show Constraint Points",
+        default=False,
+        description="Display arrows at Constraint Points locations"
+    )
 
+    bpy.types.Scene.show_contact_points = bpy.props.BoolProperty(
+        name="Show Contact Points",
+        default=False,
+        description="Display arrows at Contact Points locations"
+    )
+
+    bpy.types.Scene.show_attachment_areas = bpy.props.BoolProperty(
+        name="Show Attachment Areas",
+        default=False,
+        description="Enable to display attachment areas with random colors. Move the collection above others for better visibility."
+    )
+
+
+    bpy.types.Scene.show_force_directions = bpy.props.BoolProperty(
+        name="Show Force Directions",
+        default=False,
+        description="Display arrows indicating force directions"
+    )
 # Eliminación de clases y propiedades
 def unregister():
     bpy.utils.unregister_class(VIEW3D_PT_FilePathPanel_PT)
@@ -1120,6 +1305,8 @@ def unregister():
     bpy.utils.unregister_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
     bpy.utils.unregister_class(VIEW3D_OT_RunExternalProgramOperator)
     bpy.utils.unregister_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
+    bpy.utils.unregister_class(VIEW3D_OT_ApplyForcesParametersOperator)
+
 
     del bpy.types.Scene.selected_folder
     del bpy.types.Scene.new_folder_name
