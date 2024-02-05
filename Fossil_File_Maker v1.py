@@ -400,22 +400,26 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
     bl_options = {'REGISTER', 'UNDO'}
     bl_description = "Stores the coordinates of the selected vertex/point in a variable."
 
-
     def execute(self, context):
-    
-        set_object_mode(context.active_object, 'OBJECT')
-        vertices = [v.co for v in context.active_object.data.vertices if v.select]
+        active_object = context.active_object
 
-        if vertices:
-            x, y, z = vertices[0][0], vertices[0][1], vertices[0][2]
+        if active_object and active_object.mode == 'EDIT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        selected_vertices = [v.co for v in active_object.data.vertices if v.select]
+
+        if selected_vertices:
+            coordinates = selected_vertices[0]
+            x, y, z = get_transformed_coordinates(active_object, coordinates)
+
             context.scene.focal_point_coordinates = f"{x:.3f},{y:.3f},{z:.3f}"
             self.report({'INFO'}, f"Focal Point coordinates: {context.scene.focal_point_coordinates}")
         else:
             context.scene.focal_point_coordinates = ""
             self.report({'ERROR'}, "No vertex selected as Focal Point")
 
-
         return {'FINISHED'}
+
 
 class VIEW3D_OT_SubmitParametersOperator(Operator):
     bl_idname = "view3d.submit_parameters"
