@@ -284,9 +284,10 @@ class VIEW3D_OT_RotateElementsOperator(bpy.types.Operator):
     bl_description = "Rotate objects, changing the Y and Z axes to match other coordinate systems. Use with caution, as it affects the orientation of the objects. Make sure you are certain about the desired orientation before clicking."
 
     def execute(self, context):
+        set_object_mode(context.active_object, 'OBJECT')
+        
         for obj in bpy.data.objects:
-            if obj.type == 'MESH':
-                self.set_object_mode(obj, 'OBJECT')
+            if obj.type == 'MESH':              
                 obj.rotation_euler.rotate_axis("X", math.radians(-90))
                 obj.rotation_euler.rotate_axis("Z", math.radians(-180))
 
