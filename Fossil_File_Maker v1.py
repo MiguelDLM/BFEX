@@ -324,11 +324,12 @@ class VIEW3D_OT_StartSelectionOperator(Operator):
     def execute(self, context):
         # Cambiar a modo de edición y activar la herramienta "lasso select" con "face select"
         bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_all(action='DESELECT')       
+        bpy.ops.mesh.select_all(action='DESELECT')      
+        bpy.context.tool_settings.mesh_select_mode[2] = True        
         bpy.context.tool_settings.mesh_select_mode[0] = False 
-        bpy.context.tool_settings.mesh_select_mode[1] = False
-        bpy.context.tool_settings.mesh_select_mode[2] = True
+        bpy.context.tool_settings.mesh_select_mode[1] = False        
         bpy.ops.wm.tool_set_by_id(name="builtin.select_lasso", space_type='VIEW_3D')
+  
 
         return {'FINISHED'}
 
@@ -920,13 +921,37 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
     bl_label = "Apply Forces and Parameters"
     bl_options = {'REGISTER', 'UNDO'}
     
-
     def execute(self, context):
-        visual_elements_collection = bpy.data.collections.get("Visual elements")
+    
+        # Verificar si Blender está en modo objeto
+        if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
+            # Cambiar a modo objeto
+            bpy.ops.object.mode_set(mode='OBJECT')
+            
+        # Nombre de la colección
+        collection_name = "Visual elements"
+
         # Verificar si la colección existe antes de intentar limpiarla
+        visual_elements_collection = bpy.data.collections.get(collection_name)
         if visual_elements_collection:
-            # Eliminar objetos existentes en la colección
-            self.clear_collection_objects(visual_elements_collection)
+        
+            for obj in visual_elements_collection.objects:
+                bpy.data.objects.remove(obj)           
+            bpy.data.collections.remove(visual_elements_collection)
+
+        # Crear una nueva colección
+        visual_elements_collection = bpy.data.collections.new(collection_name)
+        bpy.context.scene.collection.children.link(visual_elements_collection)
+
+        # Crear los materiales con colores específicos
+        red_material = bpy.data.materials.new(name="RedMaterial")
+        red_material.diffuse_color = (1, 0, 0, 1)  # RGB y alpha
+
+        yellow_material = bpy.data.materials.new(name="YellowMaterial")
+        yellow_material.diffuse_color = (1, 1, 0, 1)  # RGB y alpha
+
+        blue_material = bpy.data.materials.new(name="BlueMaterial")
+        blue_material.diffuse_color = (0, 0, 1, 1)  # RGB y alpha
         
         if context.scene.show_attachment_areas:
             # Obtener la colección especificada
@@ -956,15 +981,6 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
             # Obtener las coordenadas del diccionario de parámetros musculares
             muscle_parameters = context.scene.get("muscle_parameters", [])
             muscle_parameters = json.loads(muscle_parameters)
-            # Crear los materiales con colores específicos
-            red_material = bpy.data.materials.new(name="RedMaterial")
-            red_material.diffuse_color = (1, 0, 0, 1)  # RGB y alpha
-
-            yellow_material = bpy.data.materials.new(name="YellowMaterial")
-            yellow_material.diffuse_color = (1, 1, 0, 1)  # RGB y alpha
-
-            blue_material = bpy.data.materials.new(name="BlueMaterial")
-            blue_material.diffuse_color = (0, 0, 1, 1)  # RGB y alpha
 
             for entry in muscle_parameters:
                 focal_point_coords = entry.get('focalpt', [])
@@ -999,6 +1015,10 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
 
     def create_combined_object_at_location(self, location_coords, collection, object_name, orientation='DOWN', material=None ):
         if location_coords:
+        
+            # Guardar el objeto activo actual
+            active_object_before = bpy.context.view_layer.objects.active
+            
             # Crear el cono
             bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=1, depth=1, location=location_coords, rotation=(0, 0, math.radians(90)))
             cone = bpy.context.object
