@@ -79,6 +79,31 @@ Blender employs a Z-Up world interface, where the Z-axis points upward. Some sof
 
 11. **Results and Visualization:**
     - Use buttons like "Open FEA Results Folder" and "Visual Elements" to navigate and visualize results.
+   
+## Common Issues
+
+Fossils may encounter errors during execution if files are not generated correctly. In most cases, Fossils closes without warnings. To diagnose and resolve issues, examine the `stdout.txt` file located inside the workspace folder (next to the folder where meshes were stored). Below are common errors and suggested solutions:
+
+### Error: `ZeroDivisionError: float division by zero`
+
+This error occurs when sub-meshes contain zero faces (empty meshes). Before clicking "Export," ensure that the new collection and all elements inside are visible.
+
+### Error: `0 successfully identified`
+	identify_nodes_SaP...
+    sweep and prune done in X.XX seconds
+	(XXXX tests instead of XXXXX)
+	1 to be identified
+	0 successfully identified
+
+#### Option 1
+This error occurs when nodes (contact/constraint points) are not identified. Check your coordinate system and use the "Visual Elements" section to view the coordinates of the contact and constraint points. If the coordinates appear in a different location, you may not have applied the rotation changes to your meshes. Go to Object > Apply > Rotation or Object > Apply > Translation (Ctrl+A).
+
+#### Option 2
+Ensure that you selected the contact/constraint points over the main mesh. If you selected points on a different mesh, Fossils won't be able to find them.
+
+### Error: Fossils don't start
+
+Ensure that Fossils is installed in the directory: ~\AppData\Local\Programs\Fossils\fossils.exe
 
 ## Contributing
 
