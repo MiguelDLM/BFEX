@@ -142,9 +142,6 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         col.operator("view3d.submit_contact_point2", text="Submit Contact Point 2", icon='EXPORT')
         col.operator("view3d.clear_contact_points", text="Clear Contact Points", icon='TRASH')
 
-        # Visual separation between sections
-        layout.separator()
-
         # Constraint Points Section
         box = layout.box()
         box.label(text="Constraint Points", icon='CONSTRAINT_BONE')
@@ -184,6 +181,24 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         box.prop(context.scene, "youngs_modulus", text="Young's Modulus")
         box.prop(context.scene, "poissons_ratio", text="Poisson's Ratio")
 
+        # Visual elements section
+        box = layout.box()
+        box.label(text="Visual elements")
+
+        # Checkbox: Show Constraint Points y Show Contact Points
+        row = box.row()
+        row.prop(context.scene, "show_constraint_points", text="Show Constraint Points")
+        row.prop(context.scene, "show_contact_points", text="Show Contact Points")
+
+        # Checkbox: Show Attachment Areas y Show Force Directions
+        row = box.row()
+        row.prop(context.scene, "show_attachment_areas", text="Show Attachment Areas")     
+        row.prop(context.scene, "show_force_directions", text="Show Force Directions")
+
+        # Botón Apply
+        row = box.row()
+        row.operator("view3d.apply_forces_parameters", text="Apply")
+        
         # Export Files Section
         box = layout.box()
         box.label(text="Export files", icon='EXPORT')
@@ -202,23 +217,6 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         row.operator("view3d.run_fossils", text="Run Fossils", icon='PLAY')
         row.operator("view3d.open_fea_results_folder", text="Open FEA Results Folder", icon='FILE_FOLDER')
         
-        # Visual elements section
-        box = layout.box()
-        box.label(text="Visual elements")
-
-        # Checkbox: Show Constraint Points y Show Contact Points
-        row = box.row()
-        row.prop(context.scene, "show_constraint_points", text="Show Constraint Points")
-        row.prop(context.scene, "show_contact_points", text="Show Contact Points")
-
-        # Checkbox: Show Attachment Areas y Show Force Directions
-        row = box.row()
-        row.prop(context.scene, "show_attachment_areas", text="Show Attachment Areas")     
-        row.prop(context.scene, "show_force_directions", text="Show Force Directions")
-
-        # Botón Apply
-        row = box.row()
-        row.operator("view3d.apply_forces_parameters", text="Apply")
 
     
 class VIEW3D_OT_BrowseFolderOperator(Operator, ImportHelper):
