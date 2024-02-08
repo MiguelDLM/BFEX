@@ -31,6 +31,7 @@ To install the add-on, follow these steps:
 
 Ensure your mesh is free of errors by utilizing the 3D print add-on and clicking "Check All." Verify that your mesh does not contain errors such as Non-Manifold Edges, Bad Contiguous Edges, Intersect Faces, Zero Faces, Zero Edges, Non-Flat Faces, Thin Faces, or Sharp Edges. All error counts should be zero; otherwise, Fossils may crash. Overhang Faces are allowed in Fossils.
 
+![Mesh with good quality example](https://github.com/MiguelDLM/Fossils-File-Maker/blob/main/Quality%20of%20the%20mesh%20example.png)
 ### Verify Correct Orientation
 
 Blender employs a Z-Up world interface, where the Z-axis points upward. Some software, like MeshLab, uses a Y-Up world interface. Fossils assumes a Y-Up system, so ensure your model is correctly oriented before starting. The add-on provides a "Rotate Y to Z" button to adjust the orientation if needed.
