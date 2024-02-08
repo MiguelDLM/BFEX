@@ -61,6 +61,7 @@ Blender employs a Z-Up world interface, where the Z-axis points upward. Some sof
 
 6. **Parameter Submission:**
    - Click "Submit Parameters" to store all values (file name, focal point, force, and loading scenario) in a JSON dictionary.
+     Note: The stored parameters are displayed in Blender's console. Check regularly to ensure the data is being stored correctly.
 
 7. **Undo Last Submission:**
    - If a mistake is made, click "Delete Last Muscle Attachment and Parameters" to remove the last values from the JSON dictionary.
