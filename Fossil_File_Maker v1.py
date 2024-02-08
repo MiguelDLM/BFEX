@@ -118,7 +118,7 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         row = box.row()
         row.operator("view3d.submit_parameters", text="Submit Parameters", icon='EXPORT')
         row = box.row()
-        row.operator("view3d.delete_last_muscle_attachment", text="Delete Last Muscle Attachment AND parameters", icon='TRASH')
+        row.operator("view3d.delete_last_muscle_attachment", text="Delete last parameters submited", icon='TRASH')
 
         # Contact Points Section
         box = layout.box()
@@ -471,34 +471,31 @@ class VIEW3D_OT_DeleteLastMuscleAttachmentOperator(Operator):
     bl_idname = "view3d.delete_last_muscle_attachment"
     bl_label = "Delete Last Muscle Attachment"
     bl_options = {'REGISTER', 'UNDO'}
-    bl_description = "Deletes the last mesh and parameters stored in a dictionary. Be aware, if you click it before submitting the parameters, the last input parameters will be deleted along with the last sub-mesh created. WARNING: Use with caution!"
+    bl_description = "Deletes the last parameters stored in a dictionary. Be aware, if you click it before submitting the parameters, the last input parameters will be deleted. WARNING: Use with caution!"
 
     def execute(self, context):
-        # Obtener el diccionario existente o crear uno nuevo
+        
         muscle_parameters_str = context.scene.get("muscle_parameters", "[]")
         muscle_parameters = json.loads(muscle_parameters_str)
 
-        # Verificar si hay elementos en el diccionario antes de intentar eliminar
+       
         if muscle_parameters:
-            last_submesh_name = context.scene.submesh_name
-            last_submesh_object = bpy.data.objects.get(last_submesh_name)
-
-            if last_submesh_object:
-                bpy.data.objects.remove(last_submesh_object, do_unlink=True)
-
-            # Eliminar la última entrada del diccionario
+            last_entry = muscle_parameters[-1]          
             muscle_parameters.pop()
 
-            # Almacenar el diccionario actualizado como cadena JSON en la propiedad de la escena
             json_str = json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False)
             context.scene["muscle_parameters"] = json_str
-            context.scene.submesh_name = ""
 
-            self.report({'INFO'}, f"Deleted last muscle attachment: {last_submesh_name}")
+            self.report({'INFO'}, f"Deleted last muscle attachment parameters. Updated muscle parameters:\n{json_str}")
+
+            context.scene.submesh_name = "" 
+
         else:
             self.report({'WARNING'}, "No muscle attachments to delete.")
 
         return {'FINISHED'}
+
+
 
 
 # Definición de la clase VIEW3D_OT_SelectContactPointOperator
