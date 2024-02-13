@@ -42,6 +42,8 @@ def update_opt_file(opt_file):
         if current_view is not None:
             # Agregar líneas específicas de la vista actual a current_view_lines
             new_lines_to_add = [
+                f'View[{current_view}].CustomMax = 45;\n',
+                f'View[{current_view}].CustomMin = 0;\n',
                 f'View[{current_view}].DrawHexahedra = 0;\n',
                 f'View[{current_view}].DrawLines = 0;\n',
                 f'View[{current_view}].DrawPoints = 0;\n',
