@@ -195,7 +195,7 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         row.prop(context.scene, "show_attachment_areas", text="Show Attachment Areas")     
         row.prop(context.scene, "show_force_directions", text="Show Force Directions")
 
-        # Botón Apply
+        # Apply button
         row = box.row()
         row.operator("view3d.apply_forces_parameters", text="Apply")
         
@@ -241,12 +241,12 @@ class VIEW3D_OT_CreateFolderOperator(Operator):
 
         if file_path and new_folder_name:
             try:
-                # Crear la carpeta en el sistema de archivos
+                # Create new folder
                 folder_path = os.path.join(file_path, new_folder_name)
                 os.makedirs(folder_path, exist_ok=True)
                 self.report({'INFO'}, f"Folder created at: {folder_path}")
 
-                # Crear la colección en Blender
+                # Create new collection
                 collection = bpy.data.collections.new(new_folder_name)
                 bpy.context.scene.collection.children.link(collection)
 
@@ -274,7 +274,7 @@ class VIEW3D_OT_SubmitMainObjectOperator(Operator):
 
         return {'FINISHED'}
         
-# Operador para rotar elementos
+# Rotate elements
 class VIEW3D_OT_RotateElementsOperator(bpy.types.Operator):
     bl_idname = "view3d.rotate_elements"
     bl_label = "Rotate Elements"
@@ -292,7 +292,7 @@ class VIEW3D_OT_RotateElementsOperator(bpy.types.Operator):
         self.report({'INFO'}, "Elements rotated from Y to Z")
         return {'FINISHED'}
 
-# Operador para restaurar orientación de ejes
+# Restore axes
 class VIEW3D_OT_RestoreOrientationAxesOperator(bpy.types.Operator):
     bl_idname = "view3d.restore_orientation_axes"
     bl_label = "Restore Orientation Axes"
@@ -340,26 +340,26 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
 
 
     def execute(self, context):
-        # Salir del modo de edición y volver a la vista de objeto
+        # Set object mode
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        # Crear una nueva malla para la submalla
+       
         bpy.ops.object.select_all(action='DESELECT')
         bpy.context.view_layer.objects.active = bpy.context.active_object
         bpy.context.active_object.select_set(True)
 
-        # Crear una nueva malla solo con la parte seleccionada
+         # Create new mesh
         bpy.ops.object.duplicate(linked=False)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='INVERT')
         bpy.ops.mesh.delete(type='FACE')
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        # Renombrar la nueva malla
+        #rename mesh
         submesh_name = context.scene.submesh_name
         bpy.context.active_object.name = submesh_name
 
-        # Mover la nueva malla a la colección creada previamente
+        # Move new mesh to new collection
         collection_name = context.scene.new_folder_name
         collection = bpy.data.collections.get(collection_name)
 
@@ -368,7 +368,7 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
         else:
             self.report({'ERROR'}, f"Collection '{collection_name}' not found")
 
-        # Quitar la malla de la colección original
+        # delete duplicated mesh
         original_collection = bpy.context.active_object.users_collection[0]
         original_collection.objects.unlink(bpy.context.active_object)
 
@@ -376,7 +376,7 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
 
         return {'FINISHED'}
         
-# Operador para seleccionar el punto focal
+# Select focal point
 class VIEW3D_OT_SelectFocalPointOperator(Operator):
     bl_idname = "view3d.select_focal_point"
     bl_label = "Select Focal Point"
@@ -387,12 +387,12 @@ class VIEW3D_OT_SelectFocalPointOperator(Operator):
     def execute(self, context):
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.context.tool_settings.mesh_select_mode[0] = True  # Modo de selección de cara
+        bpy.context.tool_settings.mesh_select_mode[0] = True 
         bpy.context.tool_settings.mesh_select_mode[1] = False
         bpy.context.tool_settings.mesh_select_mode[2] = False
         return {'FINISHED'}
 
-# Operador para enviar el punto focal
+# Submit focal point
 class VIEW3D_OT_SubmitFocalPointOperator(Operator):
     bl_idname = "view3d.submit_focal_point"
     bl_label = "Submit Focal Point"
@@ -428,40 +428,28 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
 
 
     def execute(self, context):
-        # Obtener el nombre de la última submalla extraída
+        
         last_submesh_name = context.scene.submesh_name
-
-        # Construir el nombre del archivo STL
-        file_name = f"{last_submesh_name}.stl"  # Agregar "/" antes del nombre del archivo
-
-        # Obtener los valores de la fuerza y el método desde el contexto
+        file_name = f"{last_submesh_name}.stl" 
         force_value = context.scene.force_value
         selected_option = context.scene.selected_option
         focal_point_coordinates = [float(coord) for coord in context.scene.focal_point_coordinates.split(",")]
 
-        # Convertir las coordenadas del punto focal a una cadena JSON sin indentación
+        # Convert coords to JSON
         focal_point_coordinates_str = json.dumps(focal_point_coordinates, indent=None)
-
-        # Obtener el diccionario existente o crear uno nuevo
         muscle_parameters_str = context.scene.get("muscle_parameters", "[]")
         muscle_parameters = json.loads(muscle_parameters_str)
 
-        # Almacenar los datos en un diccionario
+        # Store values into a dictionary
         data = {
             'file': f"f'{{path}}/" + f"{file_name}'",  
             'force': force_value,
-            'focalpt': focal_point_coordinates,  # Usar la cadena JSON de las coordenadas
+            'focalpt': focal_point_coordinates,  
             'method': selected_option
         }
-
-        # Agregar la entrada al diccionario
-        muscle_parameters.append(data)  # Utilizar append para agregar un nuevo elemento a la lista
-
-        # Almacenar el diccionario como cadena JSON en la propiedad de la escena
+        muscle_parameters.append(data)  
         json_str = json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False)
         context.scene["muscle_parameters"] = json_str
-
-        # Mostrar el diccionario en la consola
         self.report({'INFO'}, "Stored data:\n" + json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False))
         return {'FINISHED'}
 
@@ -494,22 +482,18 @@ class VIEW3D_OT_DeleteLastMuscleAttachmentOperator(Operator):
         return {'FINISHED'}
 
 
-
-
-# Definición de la clase VIEW3D_OT_SelectContactPointOperator
 class VIEW3D_OT_SelectContactPointOperator(Operator):
+    
     bl_idname = "view3d.select_contact_point"
     bl_label = "Select Contact Point"
     bl_options = {'REGISTER', 'UNDO'}
     bl_description = "Switches to Edit Mode and Vertex selection, enabling you to select a point to be used as a contact point where the force will be applied during the FEA."
 
-
-
     def execute(self, context):
-        # Cambiar a modo de edición y activar la herramienta "vertex select"
+        
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.context.tool_settings.mesh_select_mode[0] = True  # Modo de selección de cara
+        bpy.context.tool_settings.mesh_select_mode[0] = True  
         bpy.context.tool_settings.mesh_select_mode[1] = False
         bpy.context.tool_settings.mesh_select_mode[2] = False
 
@@ -571,7 +555,7 @@ class VIEW3D_OT_ClearContactPointsOperator(Operator):
     bl_description = "Delete contact points stored"
 
     def execute(self, context):
-        # Limpiar las variables de Contact Point 1 y Contact Point 2
+
         context.scene.Contact_point1 = ""
         context.scene.Contact_point2 = ""
         context.scene.contact_point_coordinates = ""
@@ -652,10 +636,10 @@ class VIEW3D_OT_ClearConstraintPointsOperator(Operator):
     bl_description = "Delete constraint points stored"
 
     def execute(self, context):
-        # Limpiar las variables de Constraint Point 1 y Constraint Point 2
+        
         context.scene.Constraint_point1 = ""
         context.scene.Constraint_point2 = ""
-        context.scene.constraint_point_coordinates = ""  # Limpiar la variable de coordenadas
+        context.scene.constraint_point_coordinates = "" 
         return {'FINISHED'}
         
 class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
@@ -669,7 +653,7 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
 
         if file_path:
             try:
-                # Iterar sobre las mallas en la colección y exportarlas
+                
                 collection_name = context.scene.new_folder_name
                 collection = bpy.data.collections.get(collection_name)
                 Contact_point1 = bpy.context.scene.Contact_point1
@@ -683,46 +667,41 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                 youngs_modulus = context.scene.youngs_modulus
                 poissons_ratio = round(context.scene.poissons_ratio, 3)
                 
-                # Obtener valores de los checkboxes
+                
                 contact_x = context.scene.contact_x
                 contact_y = context.scene.contact_y
                 contact_z = context.scene.contact_z
 
-                # Construir la variable con el formato deseado
                 selected_axes = [f"'{axis}'" for axis, selected in [('x', contact_x), ('y', contact_y), ('z', contact_z)] if selected]
                 contact_axes = ','.join(selected_axes)
 
-                # Obtener valores de los checkboxes para Constraint Point 1
                 constraint1_x = context.scene.constraint1_x
                 constraint1_y = context.scene.constraint1_y
                 constraint1_z = context.scene.constraint1_z
 
-                # Construir la variable con el formato deseado para Constraint Point 1
                 selected_axes_cp1 = [f"'{axis}'" for axis, selected in [('x', constraint1_x), ('y', constraint1_y), ('z', constraint1_z)] if selected]
                 constraint_axes_cp1 = ','.join(selected_axes_cp1)
 
-                # Obtener valores de los checkboxes para Constraint Point 2
                 constraint2_x = context.scene.constraint2_x
                 constraint2_y = context.scene.constraint2_y
                 constraint2_z = context.scene.constraint2_z
 
-                # Construir la variable con el formato deseado para Constraint Point 2
                 selected_axes_cp2 = [f"'{axis}'" for axis, selected in [('x', constraint2_x), ('y', constraint2_y), ('z', constraint2_z)] if selected]
                 constraint_axes_cp2 = ','.join(selected_axes_cp2)              
         
                 if collection:
-                    # Verificar si Contact Point 2 existe
+                    
                     if Contact_point2:
-                        # Ambos Contact Points están presentes
+                        
                         contact_pts = [[float(coord) for coord in Contact_point1.split(",")],
                                        [float(coord) for coord in Contact_point2.split(",")]]
                     else:
-                        # Solo Contact Point 1 está presente
+                       
                         contact_pts = [[float(coord) for coord in Contact_point1.split(",")]]
                         
-                    # Verificar si Constraint Point 2 existe
+                    
                     if Constraint_point2:
-                        # Ambos Constraint Points están presentes
+                       
                         constraint_pts = [
                             f"p['axis_pt1'] = {[float(coord) for coord in Constraint_point1.split(',')]}\n",
                             f"    p['axis_pt2'] = {[float(coord) for coord in Constraint_point2.split(',')]}\n"
@@ -730,10 +709,10 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                         constraint_axes = f"'axis_pt1': [{constraint_axes_cp1}],\n\t\t'axis_pt2': [{constraint_axes_cp2}]"
 
                     else:
-                        # Solo Constraint Point 1 está presente
+                        
                         constraint_axes = f"'axis_pt1': [{constraint_axes_cp1}]"
                         constraint_pts = [f"p['axis_pt1'] = {[float(coord) for coord in Constraint_point1.split(',')]}\n"]
-                    #Exportar malla principal
+                   
                     selected_main_object = context.scene.selected_main_object
                     main_object = bpy.data.objects.get(selected_main_object)
 
@@ -741,13 +720,11 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                         bpy.context.view_layer.objects.active = main_object
                         bpy.ops.object.select_all(action='DESELECT')
                         main_object.select_set(True)
-
-                        # Construir el nombre de archivo y exportar la malla en formato STL
+                 
                         file_name_main = f"{main_object.name}.stl"
                         file_path_stl_main = os.path.join(file_path, collection_name, file_name_main)
                         bpy.ops.export_mesh.stl(filepath=file_path_stl_main, use_selection=True, ascii=False)
 
-                        # Desactivar la malla después de la exportación
                         bpy.context.view_layer.objects.active = None
                     else:
                         self.report({'ERROR'}, f"Main object '{selected_main_object}' not found")
@@ -755,20 +732,16 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                     for obj in collection.objects:                          
                         if obj.type == 'MESH':
                         
-                            # Activar y seleccionar solo la malla que se exportará
                             bpy.context.view_layer.objects.active = obj
                             bpy.ops.object.select_all(action='DESELECT')
                             obj.select_set(True)
 
-                            # Construir el nombre de archivo y exportar la malla en formato STL
                             file_name = f"{obj.name}.stl"
                             file_path_stl = os.path.join(file_path, collection_name, file_name)
                             bpy.ops.export_mesh.stl(filepath=file_path_stl, use_selection=True, ascii=False)
-
-                            # Desactivar la malla después de la exportación
                             bpy.context.view_layer.objects.active = None
-
-                    # Crear el script y guardarlo en la misma carpeta
+                            
+                    # Create python script
                     script_content = f"""\
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
@@ -836,16 +809,11 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
     bl_description = "Run Fossils with the script.py file stored in the selected folder in Browse folder option. If fossils open and crash, check the correct location and names of the files. script.py is te default name"
 
     def execute(self, context):
-        # Ruta al archivo Python
+
         python_file_path = bpy.path.abspath(context.scene.selected_folder)
         python_file_path = os.path.join(python_file_path, "script.py")
-
-        # Carpeta del usuario
         user_folder = os.path.expanduser("~")
-
-        # Ruta al ejecutable del programa externo
         external_program_path = os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "fossils.exe")
-
         args = [python_file_path]
 
         if context.scene.display_existing_results:
@@ -855,13 +823,13 @@ class VIEW3D_OT_RunFossilsOperator(bpy.types.Operator):
             args.append("--nogui")
 
         try:
-            # Verificar si se debe ejecutar como administrador
+            
             if context.scene.run_as_admin:
-                # Ejecutar el programa externo con privilegios de administrador
+                
                 args = ' '.join(args)
                 ctypes.windll.shell32.ShellExecuteW(None, "runas", external_program_path, args, python_file_path, 1)
             else:
-                # Ejecutar el programa externo sin privilegios de administrador
+
                 subprocess.Popen([external_program_path] + args, creationflags=subprocess.CREATE_NEW_CONSOLE)
 
                 
@@ -884,21 +852,18 @@ class VIEW3D_OT_OpenFEAResultsFolderOperator(bpy.types.Operator):
         file_path = bpy.path.abspath(context.scene.selected_folder)
         new_folder_name = context.scene.new_folder_name.lower()
 
-        # Rutas posibles de las carpetas de resultados de FEA
         fea_results_folders = [
             os.path.join(file_path, "workspace",new_folder_name+"_script"),
             os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "_internal", "workspace"),
             os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "workspace")
         ]
 
-        # Verificar la existencia de las carpetas
         found_folder = None
         for fea_results_folder in fea_results_folders:
             if os.path.exists(fea_results_folder):
                 found_folder = fea_results_folder
                 break
 
-        # Abrir la carpeta encontrada o emitir un mensaje de error
         if found_folder:
             bpy.ops.wm.path_open(filepath=found_folder)
             self.report({'INFO'}, f"FEA results folder opened: {found_folder}")
@@ -918,15 +883,11 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
     
     def execute(self, context):
     
-        # Verificar si Blender está en modo objeto
         if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
-            # Cambiar a modo objeto
             bpy.ops.object.mode_set(mode='OBJECT')
             
-        # Nombre de la colección
         collection_name = "Visual elements"
 
-        # Verificar si la colección existe antes de intentar limpiarla
         visual_elements_collection = bpy.data.collections.get(collection_name)
         if visual_elements_collection:
         
@@ -934,19 +895,17 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
                 bpy.data.objects.remove(obj)           
             bpy.data.collections.remove(visual_elements_collection)
 
-        # Crear una nueva colección
         visual_elements_collection = bpy.data.collections.new(collection_name)
         bpy.context.scene.collection.children.link(visual_elements_collection)
 
-        # Crear los materiales con colores específicos
         red_material = bpy.data.materials.new(name="RedMaterial")
-        red_material.diffuse_color = (1, 0, 0, 1)  # RGB y alpha
+        red_material.diffuse_color = (1, 0, 0, 1)  # RGB and alpha
 
         yellow_material = bpy.data.materials.new(name="YellowMaterial")
-        yellow_material.diffuse_color = (1, 1, 0, 1)  # RGB y alpha
+        yellow_material.diffuse_color = (1, 1, 0, 1) 
 
         blue_material = bpy.data.materials.new(name="BlueMaterial")
-        blue_material.diffuse_color = (0, 0, 1, 1)  # RGB y alpha
+        blue_material.diffuse_color = (0, 0, 1, 1) 
         
         if context.scene.show_attachment_areas:
             # Obtener la colección especificada
@@ -954,15 +913,13 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
 
             if attachment_collection:
                 for obj in attachment_collection.objects:
-                    # Asignar un nuevo material a cada submalla
+
                     if obj.type == 'MESH':
                         random_color = generate_random_color()
                         
-                        # Crear un nuevo material
                         new_material = bpy.data.materials.new(name="AttachmentMaterial")
                         new_material.diffuse_color = random_color
                         
-                        # Asignar el material a la submalla
                         if len(obj.data.materials) > 0:
                             obj.data.materials[0] = new_material
                         else:
@@ -973,14 +930,13 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
             bpy.context.scene.collection.children.link(visual_elements_collection)
 
         if context.scene.show_force_directions:
-            # Obtener las coordenadas del diccionario de parámetros musculares
+
             muscle_parameters = context.scene.get("muscle_parameters", [])
             muscle_parameters = json.loads(muscle_parameters)
 
             for entry in muscle_parameters:
                 focal_point_coords = entry.get('focalpt', [])
                 
-                # Comprobar si las coordenadas están en el antiguo formato
                 if isinstance(focal_point_coords, list):
                     coords = focal_point_coords
                 else:
@@ -1011,20 +967,16 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
     def create_combined_object_at_location(self, location_coords, collection, object_name, orientation='DOWN', material=None ):
         if location_coords:
         
-            # Guardar el objeto activo actual
             active_object_before = bpy.context.view_layer.objects.active
             
-            # Crear el cono
             bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=1, depth=1, location=location_coords, rotation=(0, 0, math.radians(90)))
             cone = bpy.context.object
             cone.name = object_name
 
-            # Crear el cilindro
             bpy.ops.mesh.primitive_cylinder_add(radius=0.5, depth=2, location=(location_coords[0], location_coords[1], location_coords[2] - 1), rotation=(0, 0, 0))
             cylinder = bpy.context.object
             cylinder.name = object_name + "_Cylinder"
 
-            # Unir el cono y el cilindro
             bpy.context.view_layer.objects.active = cone
             bpy.ops.object.select_all(action='DESELECT')
             cone.select_set(True)
@@ -1032,7 +984,6 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
             bpy.context.view_layer.objects.active = cone
             bpy.ops.object.join()
 
-            # Aplicar la rotación según la orientación
             if orientation == 'DOWN':
                 cone.rotation_euler = (math.radians(90), 0, 0)
             elif orientation == 'UP':
@@ -1040,10 +991,8 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
             elif orientation == 'RIGHT':
                 cone.rotation_euler = (0, math.radians(180), 0)
 
-            # Vincular el objeto combinado a la nueva colección
             collection.objects.link(cone)
 
-            # Eliminar el objeto combinado de la colección original si estaba en otra colección
             for old_collection in cone.users_collection:
                 if old_collection.name != "Visual elements":
                     old_collection.objects.unlink(cone)
@@ -1076,8 +1025,6 @@ def update_checkboxes(self, context):
         context.scene.display_existing_results = False
         
     
-        
-# Registro de clases y propiedades
 def register():
     bpy.utils.register_class(VIEW3D_PT_FilePathPanel_PT)
     bpy.utils.register_class(VIEW3D_OT_StartSelectionOperator)
@@ -1311,7 +1258,6 @@ def register():
         default=False,
         description="Display arrows indicating force directions"
     )
-# Eliminación de clases y propiedades
 def unregister():
     bpy.utils.unregister_class(VIEW3D_PT_FilePathPanel_PT)
     bpy.utils.unregister_class(VIEW3D_OT_StartSelectionOperator)
