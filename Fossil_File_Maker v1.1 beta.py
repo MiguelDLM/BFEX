@@ -36,15 +36,13 @@ def get_transformed_coordinates(obj, coordinates):
     original_vector = mathutils.Vector(coordinates)
     transformed_vector = matrix_world @ original_vector
     return transformed_vector.x, transformed_vector.y, transformed_vector.z
-    
 def init_props():
-    bpy.types.Scene.contac_point_neighbors = StringProperty(name="All Selected Coordinates")
+    bpy.types.Scene.contact_point_neighbors = StringProperty(name="All Selected Coordinates")
 
 def clear_props():
-    del bpy.types.Scene.contac_point_neighbors
+    del bpy.types.Scene.contact_point_neighbors
 
 init_props()
-
 # Interface Panel
 class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_FilePathPanel_PT"
@@ -535,13 +533,14 @@ class VIEW3D_OT_SubmitContactPointOperator1(Operator):
             for i, vertex in enumerate(vertices):
                 x, y, z = get_transformed_coordinates(context.active_object, vertex)
                 coordinates_dict[f"vertex_{i}"] = f"{x:.6f}, {y:.6f}, {z:.6f}"
-            context.scene.contac_point_neighbors = str(coordinates_dict)
-            self.report({'INFO'}, f"All selected coordinates: {context.scene.contac_point_neighbors}")
+            context.scene.contact_point_neighbors = str(coordinates_dict)
+            self.report({'INFO'}, f"All selected coordinates: {context.scene.contact_point_neighbors}")
         else:
             context.scene.contact_point_coordinates = ""
             self.report({'ERROR'}, "No vertex selected as Contact Point")
 
         return {'FINISHED'}
+
 
 
 class VIEW3D_OT_SubmitContactPointOperator2(Operator):
@@ -680,7 +679,7 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                 collection_name = context.scene.new_folder_name
                 collection = bpy.data.collections.get(collection_name)
                 Contact_point1 = bpy.context.scene.Contact_point1
-                Constraint_point1_neighbors = bpy.context.scene.contac_point_neighbors
+                Contact_point1_neighbors = bpy.context.scene.contact_point_neighbors
                 Contact_point2 = bpy.context.scene.Contact_point2
                 Constraint_point1 = bpy.context.scene.Constraint_point1
                 Constraint_point2 = bpy.context.scene.Constraint_point2
@@ -805,9 +804,8 @@ def getMetafor(p={{}}):
 if __name__ == "__main__":
     import models.bonemodel2 as model
     model.solve(parms())
-    
-#{Constraint_point1_neighbors}
 
+#{Contact_point1_neighbors}
 """
 
                     script_file_path = os.path.join(file_path, "script.py")
