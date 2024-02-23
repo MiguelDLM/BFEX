@@ -124,7 +124,7 @@ def main():
                        contact_points_str = line.split('=')[1]
                        contact_points = eval(contact_points_str)
 
-            tolerance = 1e-6
+            tolerance = 1e-4
             
             contact_points = []
             axis_points = []
