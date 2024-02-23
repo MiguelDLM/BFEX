@@ -112,10 +112,9 @@ Ensure that Fossils is installed in the directory: `~\AppData\Local\Programs\Fos
 
 If you experience low performance in GMSH (software used for Fossils to visualize the results), it might be necessary to remove some elements from the scene to improve performance. You can do this before opening the results by editing the .opt file.
 
-To simplify this process, you can download the `script_modify_opt.py` file and the `drag_and_drop_opt_here.bat` file. Copy both files to your results folder. To automatically modify the OPT file, simply drag and drop your OPT file onto the bat file. This will add some lines to hide certain elements in the visualization.
+To simplify this process, you can download the `modify_opt.py` file. Copy the file to your results folder or any other folder in a upper level. To automatically modify the OPT file, simply drag and drop your OPT file onto the python file or use double click to search all the opt files in the folder and subfolders to modify all of them. This will add some lines to hide certain elements in the visualization.
 
-[Download script_modify_opt.py](https://github.com/MiguelDLM/Fossils-File-Maker/blob/main/script_modify_opt.py)  
-[Download drag_and_drop_opt_here.bat](https://github.com/MiguelDLM/Fossils-File-Maker/blob/main/drag%20and%20drop%20opt%20here.bat)
+[Download script_modify_opt.py](https://github.com/MiguelDLM/Fossils-File-Maker/blob/main/modify_opt.py)  
 
 ## Contributing
 
