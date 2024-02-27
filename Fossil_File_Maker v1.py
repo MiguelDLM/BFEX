@@ -1280,7 +1280,7 @@ def unregister():
     bpy.utils.unregister_class(VIEW3D_OT_ClearConstraintPointsOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitMainObjectOperator)
     bpy.utils.unregister_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_RunExternalProgramOperator)
+    bpy.utils.unregister_class(VIEW3D_OT_RunFossilsOperator)
     bpy.utils.unregister_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
     bpy.utils.unregister_class(VIEW3D_OT_ApplyForcesParametersOperator)
 
