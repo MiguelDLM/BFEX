@@ -1,11 +1,20 @@
 import os
 
+def contiene_def_parms(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        lines = file.readlines()
+        for line in lines[:12]:
+            if 'def parms(d={}):' in line or 'import os' in line or 'path = os.path.join' in line:
+                return True
+    return False
+
 def find_python_files(path):
     python_files = []
     for current_folder, _, files in os.walk(path):
         for file in files:
-            if file.endswith(".py") and not file == os.path.basename(__file__):
-                python_files.append(os.path.join(current_folder, file))
+            file_path = os.path.join(current_folder, file)
+            if file.endswith(".py") and not file == os.path.basename(__file__) and contiene_def_parms(file_path):
+                python_files.append(file_path)
     return python_files
 
 def show_file_list(files):
