@@ -71,7 +71,7 @@ def combine_csv_files():
     print("Files successfully combined. Results saved in combined_results.csv")
     
     # Plotting the data
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(15, 10))
     line_styles = ['-', '--', '-.', ':']  # Definir diferentes estilos de línea
 
     for i, column in enumerate(combined_data.columns[1:]):
@@ -82,7 +82,7 @@ def combine_csv_files():
     plt.title('Sensitivity Analysis results')
     plt.legend(loc='upper left', bbox_to_anchor=(1, 1))  
     plt.tight_layout()  
-    plt.savefig('comparison_plot.png')
+    plt.savefig('comparison_plot.png', dpi=300)
     print("Comparison plot successfully saved as comparison_plot.png")
 
     # Show the plot
