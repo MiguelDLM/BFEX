@@ -347,7 +347,7 @@ class VIEW3D_OT_StartSelectionOperator(Operator):
         return bool(context.scene.selected_main_object)
 
     def execute(self, context):
-        
+        bpy.ops.object.select_all(action='DESELECT')
         context.view_layer.objects.active = bpy.data.objects.get(context.scene.selected_main_object)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')      
@@ -554,6 +554,7 @@ class VIEW3D_OT_SelectContactPointOperator(Operator):
         return bool(context.scene.selected_main_object)
         
     def execute(self, context):
+        bpy.ops.object.select_all(action='DESELECT')
         context.view_layer.objects.active = bpy.data.objects.get(context.scene.selected_main_object)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
@@ -648,6 +649,7 @@ class VIEW3D_OT_SelectConstraintPointOperator(Operator):
         return bool(context.scene.selected_main_object)
         
     def execute(self, context):       
+        bpy.ops.object.select_all(action='DESELECT')
         context.view_layer.objects.active = bpy.data.objects.get(context.scene.selected_main_object)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
