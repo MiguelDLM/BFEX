@@ -70,11 +70,24 @@ def combine_csv_files():
     combined_data.to_csv('combined_results.csv', index=False)
     print("Files successfully combined. Results saved in combined_results.csv")
     
-    # Plotting the data
-    plt.figure(figsize=(15, 10))
-    line_styles = ['-', '--', '-.', ':']  # Definir diferentes estilos de línea
-
+    # Plotting the data interactively
+    print("Columns available for plotting:")
     for i, column in enumerate(combined_data.columns[1:]):
+        print(f"{i + 1}. {column}")
+
+    user_plot_choice = input("Choose columns to plot by entering the numbers separated by commas (e.g., 1, 2) or 'all' to plot all: ")
+
+    if user_plot_choice.lower() == 'all':
+        columns_to_plot = combined_data.columns[1:]
+    else:
+        plot_indices = [int(index) - 1 for index in user_plot_choice.split(',')]
+        columns_to_plot = [combined_data.columns[i + 1] for i in plot_indices]
+
+    # Plot the selected columns
+    plt.figure(figsize=(15, 10))
+    line_styles = ['-', '--', '-.', ':']  # Define different line styles
+
+    for i, column in enumerate(columns_to_plot):
         plt.plot(combined_data['Folder Name'], combined_data[column], label=column, linestyle=line_styles[i % len(line_styles)])
 
     plt.xlabel('Number of faces')
@@ -87,6 +100,7 @@ def combine_csv_files():
 
     # Show the plot
     plt.show()
+
 if __name__ == "__main__":
     combine_csv_files()
     input("Press Enter to close this window")
