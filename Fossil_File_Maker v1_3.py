@@ -889,6 +889,8 @@ if __name__ == "__main__":
     import models.bonemodel2 as model
     model.solve(parms())
 
+# Areas of interest
+
 # contact_point_area1: {contact_point_area1}
 # contact_point_area2: {contact_point_area2}
 # constraint_point_area1: {constraint_point_area1}
@@ -1421,7 +1423,8 @@ def getMetafor(p={{}}):
 if __name__ == "__main__":
     import models.bonemodel2 as model
     model.solve(parms())
-
+    
+# Areas of interest
 """
         for group_name, coordinates in vertex_group_coordinates.items():
             script_content += f"# {group_name}: {coordinates}\n"
