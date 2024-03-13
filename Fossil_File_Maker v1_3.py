@@ -45,7 +45,7 @@ def find_and_format_nearest_point(original_point, tree):
     formatted_point = ', '.join([f"{coord:.6f}" for coord in nearest_point])
     return formatted_point
     
-def process_contact_point(operator, point_number,context):
+def process_point(operator, context, point_number, point_type):
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.mode_set(mode='EDIT')
     active_object = bpy.context.active_object
@@ -53,8 +53,8 @@ def process_contact_point(operator, point_number,context):
 
     if vertices:
         x, y, z = get_transformed_coordinates(context.active_object, vertices[0])
-        setattr(context.scene, f"Contact_point{point_number}", f"{x:.6f}, {y:.6f}, {z:.6f}")
-        context.scene.contact_point_coordinates = f"{x:.6f},{y:.6f},{z:.6f}"
+        setattr(context.scene, f"{point_type}_point{point_number}", f"{x:.6f}, {y:.6f}, {z:.6f}")
+        context.scene[f"{point_type}_point_coordinates"] = f"{x:.6f},{y:.6f},{z:.6f}"
 
         for _ in range(context.scene.select_more_iterations):
             bpy.ops.mesh.select_more()
@@ -63,7 +63,7 @@ def process_contact_point(operator, point_number,context):
         bpy.ops.object.mode_set(mode='EDIT')
         selected_verts = [v.co for v in context.active_object.data.vertices if v.select]
       
-        vertex_group_name = f"contact_point_area{point_number}"
+        vertex_group_name = f"{point_type}_point_area{point_number}"
         vertex_group = context.active_object.vertex_groups.get(vertex_group_name)
 
         if vertex_group:
@@ -75,12 +75,13 @@ def process_contact_point(operator, point_number,context):
         vertex_group.name = vertex_group_name
         bpy.ops.object.vertex_group_assign()
 
-        context.scene[f"contact_point_area{point_number}"] = json.dumps([get_transformed_coordinates(active_object, [co.x, co.y, co.z]) for co in selected_verts])
-        operator.report({'INFO'}, f"Contact Point coordinates: {context.scene.contact_point_coordinates} and Contact area coordinates: {context.scene.contact_point_area1}")
+        context.scene[f"{point_type}_point_area{point_number}"] = json.dumps([get_transformed_coordinates(active_object, [co.x, co.y, co.z]) for co in selected_verts])
+        operator.report({'INFO'}, f"{point_type.capitalize()} Point {point_number} coordinates: {context.scene[f'{point_type}_point_coordinates']} and {point_type.capitalize()} area coordinates: {context.scene[f'{point_type}_point_area{point_number}']}")
         set_object_mode(context.active_object, 'OBJECT')
     else:
-        context.scene.contact_point_coordinates = ""
-        operator.report({'ERROR'}, f"No vertex selected as Contact Point {point_number}")
+        context.scene[f"{point_type}_point_coordinates"] = ""
+        operator.report({'ERROR'}, f"No vertex selected as {point_type.capitalize()} Point {point_number}")
+
         
 # Interface Panel
 class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
@@ -173,14 +174,14 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
             
         col.prop(context.scene, "contact_point_coordinates", text="Contact Point Coordinates", emboss=False, icon='VIEW3D')
         col.operator("view3d.select_contact_point", text="Select Contact Point", icon='RESTRICT_SELECT_OFF')
+        box.prop(context.scene, "select_more_iterations", text="Select More Iterations")
 
         # Select Axes Section for Contact Points
         row = box.row(align=True)
         row.label(text="Select Axes:")
         row.prop(context.scene, "contact_x", text="X")
         row.prop(context.scene, "contact_y", text="Y")
-        row.prop(context.scene, "contact_z", text="Z")
-        box.prop(context.scene, "select_more_iterations", text="Select More Iterations", icon='ARROW_LEFTRIGHT')
+        row.prop(context.scene, "contact_z", text="Z")       
         # Submit Contact Points in two columns
         split = box.split(factor=0.5)
         col1 = split.column(align=True)
@@ -200,6 +201,7 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         col = box.column(align=True)
         col.prop(context.scene, "constraint_point_coordinates", text="Constraint Point Coordinates", emboss=False, icon='VIEW3D')
         col.operator("view3d.select_constraint_point", text="Select Constraint Point", icon='RESTRICT_SELECT_OFF')
+        box.prop(context.scene, "select_more_iterations", text="Select More Iterations")
 
         # Select Axes Section for Constraint Point 1
         row = box.row(align=True)
@@ -272,7 +274,14 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         # Export for Sensitivity Analysis Section
         box = layout.box()
         box.label(text="Export for Sensitivity Analysis")
+        row = box.row()
+        row.prop(context.scene, "sample_name", text="Sample name", icon='GREASEPENCIL')
+        split = box.split(factor=0.5)
+        col1 = split.column(align=True)
+        col2 = split.column(align=True)
 
+        col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
+        col2.operator("view3d.submit_sample", text="Submit Sample", icon='EXPORT')
         row = box.row()
         row.prop(context.scene, "scale_factor", text="Scale Factor")
         row.prop(context.scene, "total_faces", text="Number of faces")
@@ -623,7 +632,7 @@ class VIEW3D_OT_SubmitContactPointOperator1(Operator):
         return bool(context.scene.selected_main_object)
 
     def execute(self, context):
-        process_contact_point(self, 1,context)
+        process_point(self,context, 1, 'contact')
         return {'FINISHED'}
 
 
@@ -635,14 +644,11 @@ class VIEW3D_OT_SubmitContactPointOperator2(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.Contact_point1)
+        return bool(context.scene.contact_point1)
 
     def execute(self, context):
-        process_contact_point(self, 2,context)
+        process_point(self,context, 2, 'contact')
         return {'FINISHED'}
-
-
-
 
 class VIEW3D_OT_ClearContactPointsOperator(Operator):
     bl_idname = "view3d.clear_contact_points"
@@ -652,13 +658,18 @@ class VIEW3D_OT_ClearContactPointsOperator(Operator):
     
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.Contact_point1)
+        return bool(context.scene.contact_point1)
         
     def execute(self, context):
 
-        context.scene.Contact_point1 = ""
-        context.scene.Contact_point2 = ""
+        context.scene.contact_point1 = ""
+        context.scene.contact_point2 = ""
         context.scene.contact_point_coordinates = ""
+        main_object = context.scene.main_object
+        for group in main_object.vertex_groups:
+            if group.name.startswith("contact_point_area"):
+                main_object.vertex_groups.remove(group)
+                
         return {'FINISHED'}
 
 class VIEW3D_OT_SelectConstraintPointOperator(VIEW3D_OT_SelectVertexOperator):
@@ -672,7 +683,6 @@ class VIEW3D_OT_SelectConstraintPointOperator(VIEW3D_OT_SelectVertexOperator):
         return bool(context.scene.selected_main_object)
         
 
-
 class VIEW3D_OT_SubmitConstraintPointOperator1(Operator):
     bl_idname = "view3d.submit_constraint_point1"
     bl_label = "Submit Constraint Point 1"
@@ -684,66 +694,21 @@ class VIEW3D_OT_SubmitConstraintPointOperator1(Operator):
         return bool(context.scene.selected_main_object)
         
     def execute(self, context):
-        active_object = bpy.context.active_object
-
-
-        selected_vertices = [v.co for v in active_object.data.vertices if v.select]
-
-        if selected_vertices:
-            coordinates = selected_vertices[0]
-            x, y, z = get_transformed_coordinates(active_object, coordinates)
-
-            context.scene.Constraint_point1 = f"{x:.6f}, {y:.6f}, {z:.6f}"
-            context.scene.constraint_point_coordinates = f"{x:.6f}, {y:.6f}, {z:.6f}"
-            bpy.ops.mesh.select_more()
-            bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.ops.object.mode_set(mode='EDIT')
-            selected_verts = [v.co for v in active_object.data.vertices if v.select]
-            # Aplica la transformación a las coordenadas de constraint_point_area1
-            context.scene.constraint_point_area1 = json.dumps([get_transformed_coordinates(active_object, [co.x, co.y, co.z]) for co in selected_verts])
-            self.report({'INFO'}, f"Constraint Point 1 coordinates: {context.scene.constraint_point_coordinates} and Constraint area coordinates: {context.scene.constraint_point_area1}")
-            bpy.ops.object.mode_set(mode='OBJECT')
-        else:
-            context.scene.constraint_point_coordinates = ""
-            self.report({'ERROR'}, "No vertex selected as Constraint Point")
-
+        process_point(self, context, 1, 'constraint')
         return {'FINISHED'}
 
 class VIEW3D_OT_SubmitConstraintPointOperator2(Operator):
     bl_idname = "view3d.submit_constraint_point2"
     bl_label = "Submit Constraint Point 2"
     bl_options = {'REGISTER', 'UNDO'}
-    bl_description = "Only needed if you want to use 2 constraint points. Otherwise, you may skip this step. Stores the coordinates of the selected vertex/point in a variable to be used as a constraint point."
+    bl_description = "Stores the coordinates of the selected vertex/point in a variable to be used as constraint point"
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.Constraint_point1)
+        return bool(context.scene.selected_main_object)
         
     def execute(self, context):
-        active_object = bpy.context.active_object
-
-
-
-        selected_vertices = [v.co for v in active_object.data.vertices if v.select]
-
-        if selected_vertices:
-            coordinates = selected_vertices[0]
-            x, y, z = get_transformed_coordinates(active_object, coordinates)
-
-            context.scene.Constraint_point2 = f"{x:.6f}, {y:.6f}, {z:.6f}"
-            context.scene.constraint_point_coordinates = f"{x:.6f}, {y:.6f}, {z:.6f}"
-            bpy.ops.mesh.select_more()
-            bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.ops.object.mode_set(mode='EDIT')
-            selected_verts = [v.co for v in active_object.data.vertices if v.select]
-            # Aplica la transformación a las coordenadas de constraint_point_area2
-            context.scene.constraint_point_area2 = json.dumps([get_transformed_coordinates(active_object, [co.x, co.y, co.z]) for co in selected_verts])
-            self.report({'INFO'}, f"Constraint Point 2 coordinates: {context.scene.constraint_point_coordinates} and Constraint area coordinates: {context.scene.constraint_point_area2}")
-            bpy.ops.object.mode_set(mode='OBJECT')
-        else:
-            context.scene.constraint_point_coordinates = ""
-            self.report({'ERROR'}, "No vertex selected as Constraint Point")
-
+        process_point(self, context, 2, 'constraint')
         return {'FINISHED'}
 
 
@@ -755,13 +720,17 @@ class VIEW3D_OT_ClearConstraintPointsOperator(Operator):
     
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.Constraint_point1)
+        return bool(context.scene.constraint_point1)
         
     def execute(self, context):
         
-        context.scene.Constraint_point1 = ""
-        context.scene.Constraint_point2 = ""
+        context.scene.constraint_point1 = ""
+        context.scene.constraint_point2 = ""
         context.scene.constraint_point_coordinates = "" 
+        main_object = context.scene.main_object
+        for group in main_object.vertex_groups:
+            if group.name.startswith("constraint_point_area"):
+                main_object.vertex_groups.remove(group)
         return {'FINISHED'}
         
 class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
@@ -776,9 +745,9 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
         return (
             context.scene.selected_folder and
             context.scene.new_folder_name and
-            context.scene.Contact_point1 and
+            context.scene.contact_point1 and
             context.scene.selected_main_object and
-            context.scene.Constraint_point1
+            context.scene.constraint_point1
         )
     
     def execute(self, context):
@@ -789,10 +758,10 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                 
                 collection_name = context.scene.new_folder_name
                 collection = bpy.data.collections.get(collection_name)
-                Contact_point1 = bpy.context.scene.Contact_point1
-                Contact_point2 = bpy.context.scene.Contact_point2
-                Constraint_point1 = bpy.context.scene.Constraint_point1
-                Constraint_point2 = bpy.context.scene.Constraint_point2
+                contact_point1 = bpy.context.scene.contact_point1
+                contact_point2 = bpy.context.scene.contact_point2
+                constraint_point1 = bpy.context.scene.constraint_point1
+                constraint_point2 = bpy.context.scene.constraint_point2
                 selected_main_object = context.scene.selected_main_object                
                 muscle_parameters = str(context.scene.get("muscle_parameters", {})).replace('"', "'")
                 muscle_parameters = re.sub("''", "'", muscle_parameters)
@@ -800,14 +769,10 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                 youngs_modulus = context.scene.youngs_modulus
                 poissons_ratio = round(context.scene.poissons_ratio, 3)
                 
-                contact_point_area1 = context.scene.contact_point_area1
-                contact_point_area1_str = str(contact_point_area1)
-                contact_point_area2 = context.scene.contact_point_area2
-                contact_point_area2_str = str(contact_point_area2)
-                constraint_point_area1 = context.scene.constraint_point_area1
-                constraint_point_area1_str = str(constraint_point_area1)
-                constraint_point_area2 = context.scene.constraint_point_area2
-                constraint_point_area2_str = str(constraint_point_area2)
+                contact_point_area1 = str(context.scene.contact_point_area1).replace('"', '').replace("'", '"')
+                contact_point_area2 = str(context.scene.contact_point_area2).replace('"', '').replace("'", '"')
+                constraint_point_area1 = str(context.scene.constraint_point_area1).replace('"', '').replace("'", '"')
+                constraint_point_area2 = str(context.scene.constraint_point_area2).replace('"', '').replace("'", '"')
                 
                 
                 contact_x = context.scene.contact_x
@@ -833,27 +798,27 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
         
                 if collection:
                     
-                    if Contact_point2:
+                    if contact_point2:
                         
-                        contact_pts = [[float(coord) for coord in Contact_point1.split(",")],
-                                       [float(coord) for coord in Contact_point2.split(",")]]
+                        contact_pts = [[float(coord) for coord in contact_point1.split(",")],
+                                       [float(coord) for coord in contact_point2.split(",")]]
                     else:
                        
-                        contact_pts = [[float(coord) for coord in Contact_point1.split(",")]]
+                        contact_pts = [[float(coord) for coord in contact_point1.split(",")]]
                         
                     
-                    if Constraint_point2:
+                    if constraint_point2:
                        
                         constraint_pts = [
-                            f"p['axis_pt1'] = {[float(coord) for coord in Constraint_point1.split(',')]}\n",
-                            f"    p['axis_pt2'] = {[float(coord) for coord in Constraint_point2.split(',')]}\n"
+                            f"p['axis_pt1'] = {[float(coord) for coord in constraint_point1.split(',')]}\n",
+                            f"    p['axis_pt2'] = {[float(coord) for coord in constraint_point2.split(',')]}\n"
                         ]
                         constraint_axes = f"'axis_pt1': [{constraint_axes_cp1}],\n\t\t'axis_pt2': [{constraint_axes_cp2}]"
 
                     else:
                         
                         constraint_axes = f"'axis_pt1': [{constraint_axes_cp1}]"
-                        constraint_pts = [f"p['axis_pt1'] = {[float(coord) for coord in Constraint_point1.split(',')]}\n"]
+                        constraint_pts = [f"p['axis_pt1'] = {[float(coord) for coord in constraint_point1.split(',')]}\n"]
                    
                     selected_main_object = context.scene.selected_main_object
                     main_object = bpy.data.objects.get(selected_main_object)
@@ -924,31 +889,15 @@ if __name__ == "__main__":
     import models.bonemodel2 as model
     model.solve(parms())
 
-
+# contact_point_area1: {contact_point_area1}
+# contact_point_area2: {contact_point_area2}
+# constraint_point_area1: {constraint_point_area1}
+# constraint_point_area2: {constraint_point_area2}
 """
 
                     script_file_path = os.path.join(file_path, "script.py")
                     with open(script_file_path, "w") as script_file:
                         script_file.write(script_content)
-
-
-                    with open(script_file_path, "a") as script_file:
-                        script_file.write("\n\n")
-                        script_file.write("# Contact Point area 1 coordinates\n")
-                        contact_point_area1_str = contact_point_area1.replace('"', '').replace("'", '"')
-                        script_file.write(f"# Contact Point Area 1: {contact_point_area1_str}\n")
-                        script_file.write("\n\n")
-                        script_file.write("# Contact Point area 2 coordinates\n")
-                        contact_point_area1_str = contact_point_area2.replace('"', '').replace("'", '"')
-                        script_file.write(f"# Contact Point Area 2: {contact_point_area2_str}\n")
-                        script_file.write("\n\n")
-                        script_file.write("# Constraint Point area 1 coordinates\n")
-                        contact_point_area1_str = contact_point_area2.replace('"', '').replace("'", '"')
-                        script_file.write(f"# Constraint Point Area 1: {constraint_point_area2_str}\n")
-                        script_file.write("\n\n")
-                        script_file.write("# Constraint Point area 2 coordinates\n")
-                        contact_point_area1_str = constraint_point_area2.replace('"', '').replace("'", '"')
-                        script_file.write(f"# Contact Point Area 2: {constraint_point_area2_str}\n")
                         
                         
                         self.report({'INFO'}, f"Meshes and script exported to: {file_path}")
@@ -1109,19 +1058,19 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
                 self.create_combined_object_at_location(coords, visual_elements_collection, f"ForceDirection_{focal_point_name_clean}",material=blue_material)
 
         if context.scene.show_constraint_points:
-            constraint_point1_coords = [float(coord) for coord in context.scene.Constraint_point1.split(",")]
+            constraint_point1_coords = [float(coord) for coord in context.scene.constraint_point1.split(",")]
             self.create_combined_object_at_location(constraint_point1_coords, visual_elements_collection, "ConstraintPoint1", orientation='RIGHT', material=yellow_material)
 
-            if context.scene.Constraint_point2:
-                constraint_point2_coords = [float(coord) for coord in context.scene.Constraint_point2.split(",")]
+            if context.scene.constraint_point2:
+                constraint_point2_coords = [float(coord) for coord in context.scene.constraint_point2.split(",")]
                 self.create_combined_object_at_location(constraint_point2_coords, visual_elements_collection, "ConstraintPoint2", orientation='RIGHT', material=yellow_material)
 
         if context.scene.show_contact_points:
-            contact_point1_coords = [float(coord) for coord in context.scene.Contact_point1.split(",")]
+            contact_point1_coords = [float(coord) for coord in context.scene.contact_point1.split(",")]
             self.create_combined_object_at_location(contact_point1_coords, visual_elements_collection, "ContactPoint1", orientation='DOWN', material=red_material)
 
-            if context.scene.Contact_point2:
-                contact_point2_coords = [float(coord) for coord in context.scene.Contact_point2.split(",")]
+            if context.scene.contact_point2:
+                contact_point2_coords = [float(coord) for coord in context.scene.contact_point2.split(",")]
                 self.create_combined_object_at_location(contact_point2_coords, visual_elements_collection, "ContactPoint2", orientation='DOWN', material=red_material)
 
         return {'FINISHED'}
@@ -1177,6 +1126,40 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
         for obj in collection.objects:
             bpy.data.objects.remove(obj, do_unlink=True)
 
+class VIEW3D_OT_SubmitSampleOperator(bpy.types.Operator):
+    bl_idname = "view3d.submit_sample"
+    bl_label = "Submit Sample"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Creates a vertex group for the sensitivity analysis"
+    
+    @classmethod
+    def poll(cls, context):
+        return bool(context.scene.sample_name and context.scene.new_folder_name)
+        
+    def execute(self, context):
+        sample_name = context.scene.sample_name
+
+        # Set object mode
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        # Check if vertex group already exists
+        vgroup_name = f"{sample_name}_sample"
+        vgroup = bpy.context.active_object.vertex_groups.get(vgroup_name)
+        if vgroup is not None:
+            # If it exists, remove all vertices from the group
+            bpy.ops.object.vertex_group_set_active(group=vgroup_name)
+            bpy.ops.object.vertex_group_remove(all=False)
+
+        # Create vertex group
+        vgroup = bpy.context.active_object.vertex_groups.new(name=vgroup_name)
+        selected_vertices = [v.index for v in bpy.context.active_object.data.vertices if v.select]
+        vgroup.add(selected_vertices, 1.0, 'REPLACE')
+
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = bpy.context.active_object
+        bpy.context.active_object.select_set(True)
+
+        return {'FINISHED'}
 
 #Logic of fossil parameters chechboxes        
 def update_checkboxes(self, context):
@@ -1205,10 +1188,10 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
         file_name_main = f"{main_object.name}.stl"
         sensitivity_collection_name = "Sensitivity Analysis"
         sensitivity_collection = bpy.data.collections.get(sensitivity_collection_name)
-        Contact_point1 = bpy.context.scene.Contact_point1
-        Contact_point2 = bpy.context.scene.Contact_point2
-        Constraint_point1 = bpy.context.scene.Constraint_point1
-        Constraint_point2 = bpy.context.scene.Constraint_point2
+        contact_point1 = bpy.context.scene.contact_point1
+        contact_point2 = bpy.context.scene.contact_point2
+        constraint_point1 = bpy.context.scene.constraint_point1
+        constraint_point2 = bpy.context.scene.constraint_point2
         muscle_parameters = str(context.scene.get("muscle_parameters", {})).replace('"', "'")
         muscle_parameters = re.sub("''", "'", muscle_parameters)
         muscle_parameters = re.sub("'f'", "f'", muscle_parameters)
@@ -1315,43 +1298,56 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
         tree.balance()
 
 
-        nearest_contact_point1 = find_and_format_nearest_point(Contact_point1, tree)
-        nearest_constraint_point1 = find_and_format_nearest_point(Constraint_point1, tree)
+        nearest_contact_point1 = find_and_format_nearest_point(contact_point1, tree)
+        nearest_constraint_point1 = find_and_format_nearest_point(constraint_point1, tree)
 
         contact_pts = [[float(coord) for coord in nearest_contact_point1.split(",")]]
         constraint_pts = [f"p['axis_pt1'] = {[float(coord) for coord in nearest_constraint_point1.split(',')]}\n"]
 
-        if Contact_point2:
-            nearest_contact_point2 = find_and_format_nearest_point(Contact_point2, tree)
+        if contact_point2:
+            nearest_contact_point2 = find_and_format_nearest_point(contact_point2, tree)
             contact_pts.append([float(coord) for coord in nearest_contact_point2.split(",")])
 
-        if Constraint_point2:
-            nearest_constraint_point2 = find_and_format_nearest_point(Constraint_point2, tree)
+        if constraint_point2:
+            nearest_constraint_point2 = find_and_format_nearest_point(constraint_point2, tree)
             constraint_pts.append(f"p['axis_pt2'] = {[float(coord) for coord in nearest_constraint_point2.split(',')]}\n")
 
         constraint_axes = f"'axis_pt1': [{constraint_axes_cp1}]"
-        if Constraint_point2:
+        if constraint_point2:
             constraint_axes += f", 'axis_pt2': [{constraint_axes_cp2}]"
             
         bpy.context.view_layer.objects.active = copy_main_object
+        vertex_group_coordinates = {}
         
         for group in copy_main_object.vertex_groups:
 
-            # Cambiar a modo de edición y seleccionar el grupo de vértices
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.select_all(action='DESELECT')
-            bpy.ops.object.vertex_group_set_active(group=group.name)
-            bpy.ops.object.vertex_group_select()
+            if "_sample" not in group.name and not group.name.startswith(("contact_point", "constraint_point")):
+                # Cambiar a modo de edición y seleccionar el grupo de vértices
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.object.vertex_group_set_active(group=group.name)
+                bpy.ops.object.vertex_group_select()
 
-            # Crear un nuevo objeto solo con las caras seleccionadas
-            bpy.ops.mesh.duplicate_move()
-            bpy.ops.mesh.select_linked()
-            bpy.ops.mesh.separate(type='SELECTED')
-            bpy.ops.object.mode_set(mode='OBJECT')  
-            
-            new_mesh = bpy.context.selected_objects[-1]
-            # Renombrar el objeto con el nombre del grupo de vértices
-            new_mesh.name = f"{group.name}.001"
+                # Crear un nuevo objeto solo con las caras seleccionadas
+                bpy.ops.mesh.duplicate_move()
+                bpy.ops.mesh.select_linked()
+                bpy.ops.mesh.separate(type='SELECTED')
+                bpy.ops.object.mode_set(mode='OBJECT')  
+
+                new_mesh = bpy.context.selected_objects[-1]
+                # Renombrar el objeto con el nombre del grupo de vértices
+                new_mesh.name = f"{group.name}.001"
+                
+        for group in copy_main_object.vertex_groups:
+            group_name = group.name
+            if group_name.endswith("_sample") or group_name.startswith(("contact_point", "constraint_point")):
+                # Obtener los índices de los vértices del grupo
+                group_index = group.index
+                vertices_indices = [v.index for v in copy_main_object.data.vertices if group_index in [g.group for g in v.groups]]
+                # Obtener las coordenadas de los vértices del grupo
+                vertex_coordinates = [list(copy_main_object.data.vertices[i].co) for i in vertices_indices]
+                # Almacenar las coordenadas en el diccionario
+                vertex_group_coordinates[group_name] = json.dumps(vertex_coordinates)   
         
         if sensitivity_collection is not None:
             # Obtiene la ruta de la carpeta seleccionada
@@ -1377,9 +1373,13 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
 
                 # Exporta el objeto seleccionado a un archivo .stl
                 bpy.ops.export_mesh.stl(filepath=mesh_path, use_selection=True)
+                
         else:
             print("La colección 'Sensitivity Analysis' no existe")
-     
+            
+
+                    
+
         
         # Create python script
         script_content = f"""\
@@ -1422,13 +1422,14 @@ if __name__ == "__main__":
     import models.bonemodel2 as model
     model.solve(parms())
 
-
 """
-
+        for group_name, coordinates in vertex_group_coordinates.items():
+            script_content += f"# {group_name}: {coordinates}\n"
+            
         script_file_path = os.path.join(file_path, f"{folder_name}.py")
         with open(script_file_path, "w") as script_file:
             script_file.write(script_content)
-
+            
         self.report({'INFO'}, f"Meshes and script exported to: {folder_name}")
         return {'FINISHED'}        
         
@@ -1457,9 +1458,10 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_RunFossilsOperator)
     bpy.utils.register_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_ApplyForcesParametersOperator)
+    bpy.utils.register_class(VIEW3D_OT_SubmitSampleOperator)
     bpy.utils.register_class(VIEW3D_OT_ExportSensitivityAnalysisOperator)
 
-    bpy.types.Scene.Contact_point1 = bpy.props.StringProperty(
+    bpy.types.Scene.contact_point1 = bpy.props.StringProperty(
         name="Contact Point 1",
         default="",
         description="Name or identifier for Contact Point 1"
@@ -1470,7 +1472,7 @@ def register():
         default="")
 
 
-    bpy.types.Scene.Contact_point2 = bpy.props.StringProperty(
+    bpy.types.Scene.contact_point2 = bpy.props.StringProperty(
         name="Contact Point 2",
         default="",
         description="Name or identifier for Contact Point 2"
@@ -1479,7 +1481,7 @@ def register():
         name="Contact Point Area 2", 
         default="")
         
-    bpy.types.Scene.Constraint_point1 = bpy.props.StringProperty(
+    bpy.types.Scene.constraint_point1 = bpy.props.StringProperty(
         name="Constraint Point 1",
         default="",
         description="Name or identifier for Constraint Point 1"
@@ -1489,7 +1491,7 @@ def register():
         name="Contact Point Area 2", 
         default="")
         
-    bpy.types.Scene.Constraint_point2 = bpy.props.StringProperty(
+    bpy.types.Scene.constraint_point2 = bpy.props.StringProperty(
         name="Constraint Point 2",
         default="",
         description="Name or identifier for Constraint Point 2"
@@ -1704,7 +1706,12 @@ def register():
             self.scale_factor = self.total_faces / len(main_object.data.polygons)
         else:
             self.scale_factor = 0
-
+            
+    bpy.types.Scene.sample_name = StringProperty(
+        name="Sample Name",
+        default="",
+        description="Name for the submesh to be created"
+    )
     bpy.types.Scene.scale_factor = bpy.props.FloatProperty(
         name="Scale Factor",
         default=1,
@@ -1755,10 +1762,10 @@ def unregister():
     del bpy.types.Scene.focal_point_coordinates
     del bpy.types.Scene.force_value
     del bpy.types.Scene.selected_option
-    del bpy.types.Scene.Contact_point1
-    del bpy.types.Scene.Contact_point2
-    del bpy.types.Scene.Constraint_point1
-    del bpy.types.Scene.Constraint_point2
+    del bpy.types.Scene.contact_point1
+    del bpy.types.Scene.contact_point2
+    del bpy.types.Scene.constraint_point1
+    del bpy.types.Scene.constraint_point2
     del bpy.types.Scene.contact_x
     del bpy.types.Scene.contact_y
     del bpy.types.Scene.contact_z
