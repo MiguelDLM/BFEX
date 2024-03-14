@@ -216,10 +216,6 @@ def main():
                 else:
                     print(f"Axis Point {i} Coordinates: ({x}, {y}, {z}), Von Misses Stress: No close matches found")
 
-
-
-
-
             results_list.append({
                 'Value': 'Maximum',
                 'Von Misses Stress': max_von_misses_stress,
@@ -259,19 +255,21 @@ def main():
                                     print(f"Coordinates ({x}, {y}, {z}) not found in combinedData.")
                             if von_misses_stresses:
                                 
-                                area_von_misses_stress[name.strip()] = np.mean(von_misses_stresses)
+                                area_von_misses_stress[name.strip()] = (np.mean(von_misses_stresses), len(von_misses_stresses))
                         except Exception as e:
                             print(f"Error processing coordinates: {e}")
                     elif "# Areas of interest" in line:
                         found_areas_of_interest = True
           
-            for name, average_von_misses_stress in area_von_misses_stress.items():
+            for name, data in area_von_misses_stress.items():
+                average_von_misses_stress, num_elements = data
                 results_list.append({
                     'Value': name,
                     'Von Misses Stress': average_von_misses_stress,
                     'Coordinate X': None,
                     'Coordinate Y': None,
-                    'Coordinate Z': None
+                    'Coordinate Z': None,
+                    'Number of nodes': num_elements
                 })
 
             results_df = pd.DataFrame(results_list)
