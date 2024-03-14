@@ -1312,7 +1312,7 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
 
         if constraint_point2:
             nearest_constraint_point2 = find_and_format_nearest_point(constraint_point2, tree)
-            constraint_pts.append(f"p['axis_pt2'] = {[float(coord) for coord in nearest_constraint_point2.split(',')]}\n")
+            constraint_pts.append(f"    p['axis_pt2'] = {[float(coord) for coord in nearest_constraint_point2.split(',')]}\n")
 
         constraint_axes = f"'axis_pt1': [{constraint_axes_cp1}]"
         if constraint_point2:
