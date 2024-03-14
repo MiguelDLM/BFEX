@@ -1346,10 +1346,14 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
                 # Obtener los índices de los vértices del grupo
                 group_index = group.index
                 vertices_indices = [v.index for v in copy_main_object.data.vertices if group_index in [g.group for g in v.groups]]
-                # Obtener las coordenadas de los vértices del grupo
-                vertex_coordinates = [list(copy_main_object.data.vertices[i].co) for i in vertices_indices]
+                # Obtener las coordenadas de los vértices del grupo en coordenadas locales
+                vertex_coordinates_local = [copy_main_object.data.vertices[i].co for i in vertices_indices]
+                # Convertir las coordenadas locales a coordenadas globales
+                matrix_world = copy_main_object.matrix_world
+                vertex_coordinates_global = [matrix_world @ coord for coord in vertex_coordinates_local]
+                vertex_coordinates_serializable = [[coord.x, coord.y, coord.z] for coord in vertex_coordinates_global]
                 # Almacenar las coordenadas en el diccionario
-                vertex_group_coordinates[group_name] = json.dumps(vertex_coordinates)   
+                vertex_group_coordinates[group_name] = json.dumps(vertex_coordinates_serializable)  
         
         if sensitivity_collection is not None:
             # Obtiene la ruta de la carpeta seleccionada
