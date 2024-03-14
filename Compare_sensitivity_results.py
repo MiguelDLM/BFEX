@@ -61,44 +61,46 @@ def combine_csv_files():
     combined_data = pd.DataFrame()
     for file in selected_files:
         folder_name = os.path.basename(os.path.dirname(file))
-        df = pd.read_csv(file, usecols=[1], header=None, skiprows=1).T
+        df = pd.read_csv(file, usecols=[0, 1], header=None, skiprows=1)
+        df.columns = ['Value', 'Von Misses Stress']  # Renaming columns for consistency
         df.insert(0, 'Folder Name', folder_name)
         combined_data = pd.concat([combined_data, df])
-        
-    combined_data.columns = ['Folder Name', 'Contact Point 1', 'Axis Point 1', 'Axis Point 2', 'Maximum', 'Minimum', 'Average']
+
     # Save the result to a new CSV file
     combined_data.to_csv('combined_results.csv', index=False)
     print("Files successfully combined. Results saved in combined_results.csv")
     
-    # Plotting the data interactively
-    print("Columns available for plotting:")
-    for i, column in enumerate(combined_data.columns[1:]):
-        print(f"{i + 1}. {column}")
+    grouped_data = combined_data.groupby(["Folder Name", "Value"])["Von Misses Stress"].mean()
+    subcategories = grouped_data.index.get_level_values("Value").unique()
 
-    user_plot_choice = input("Choose columns to plot by entering the numbers separated by commas (e.g., 1, 2) or 'all' to plot all: ")
+    # Interacción para elegir subcategorías
+    print("Subcategorías disponibles:")
+    for i, subcat in enumerate(subcategories):
+        print(f"{i + 1}. {subcat}")
 
-    if user_plot_choice.lower() == 'all':
-        columns_to_plot = combined_data.columns[1:]
+    choices = input("Select subcategories separated by commas (e.g., 1,2,3) or enter 'all' to view all subcategories: ")
+
+    # Filtrar datos según la elección del usuario
+    if choices.lower() == "all":
+        selected_data = grouped_data
     else:
-        plot_indices = [int(index) - 1 for index in user_plot_choice.split(',')]
-        columns_to_plot = [combined_data.columns[i + 1] for i in plot_indices]
+        selected_indices = [int(idx) - 1 for idx in choices.split(",")]
+        selected_subcats = subcategories[selected_indices]
+        selected_data = grouped_data[grouped_data.index.get_level_values("Value").isin(selected_subcats)]
 
-    # Plot the selected columns
-    plt.figure(figsize=(15, 10))
-    line_styles = ['-', '--', '-.', ':']  # Define different line styles
 
-    for i, column in enumerate(columns_to_plot):
-        plt.plot(combined_data['Folder Name'], combined_data[column], label=column, linestyle=line_styles[i % len(line_styles)])
+    # Creación del gráfico
+    plt.figure(figsize=(10, 6))
+    line_styles = ["-", "--", "-.", ":"]
+    markers = ["o", "s", "^", "D", "v", "P", "*", "X", "h"]
+    for i, (subcat, values) in enumerate(selected_data.groupby("Value")):
+        plt.plot(values.index.get_level_values("Folder Name"), values, marker=markers[i % len(markers)], label=subcat, linestyle=line_styles[i % len(line_styles)], lw =2)
 
-    plt.xlabel('Number of faces')
-    plt.ylabel('Von Misses Stress')
-    plt.title('Sensitivity Analysis results')
-    plt.legend(loc='upper left', bbox_to_anchor=(1, 1))  
-    plt.tight_layout()  
-    plt.savefig('comparison_plot.png', dpi=300)
-    print("Comparison plot successfully saved as comparison_plot.png")
-
-    # Show the plot
+    plt.xlabel("Number of faces")
+    plt.ylabel("Von Misses Stress")
+    plt.title("Von Misses Stress Variation")
+    plt.legend()
+    plt.grid(True)
     plt.show()
 
 if __name__ == "__main__":
