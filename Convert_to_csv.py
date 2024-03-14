@@ -262,7 +262,7 @@ def main():
                                 area_von_misses_stress[name.strip()] = np.mean(von_misses_stresses)
                         except Exception as e:
                             print(f"Error processing coordinates: {e}")
-                    elif "#Areas of interest" in line:
+                    elif "# Areas of interest" in line:
                         found_areas_of_interest = True
           
             for name, average_von_misses_stress in area_von_misses_stress.items():
