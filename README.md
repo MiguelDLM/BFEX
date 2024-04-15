@@ -1,6 +1,6 @@
-# Fossils For Blender
+# FEITO (File Exporter and Implementation Tool) Fossils For Blender
 
-Fossils For Blender is an add-on designed to facilitate the creation of files required for Finite Element Analysis (FEA) within Blender. The add-on offers a range of functionalities to streamline the process, allowing users to:
+FEITO is an add-on designed to facilitate the creation of files required for Finite Element Analysis (FEA) within Blender. The add-on offers a range of functionalities to streamline the process, allowing users to:
 ![Addon Menu](https://github.com/MiguelDLM/Fossils-File-Maker/raw/main/Addon%20menu.png)
 ## Features
 
