@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "Fossil File generator",
+    "name": "FEITO",
     "blender": (2, 80, 0),
     "category": "Mesh",
     "author": "E. Miguel Diaz de Leon-Munoz",
