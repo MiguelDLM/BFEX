@@ -86,8 +86,8 @@ def process_point(operator, context, point_number, point_type):
 # Interface Panel
 class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_FilePathPanel_PT"
-    bl_label = "Fossil File Maker"
-    bl_category = "Fossil Files Generator"
+    bl_label = "FEITO"
+    bl_category = "FEITO
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_options = {'HEADER_LAYOUT_EXPAND'}
