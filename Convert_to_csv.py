@@ -225,6 +225,15 @@ def main():
             })
             results_list.append({'Value': 'Minimum', 'Von Misses Stress': min_von_misses_stress})
             results_list.append({'Value': 'Average', 'Von Misses Stress': average_von_misses_stress})
+            #extract the average von misses stress of all the nodes except the 2% of the nodes with the highest von misses stress
+            combinedData2 = combinedData.sort_values(by='Von Misses Stress', ascending=False)
+            num_nodes = len(combinedData2)
+            num_nodes_to_exclude = int(num_nodes * 0.02)
+            combinedData2 = combinedData2.iloc[num_nodes_to_exclude:]
+            average_von_misses_stress2 = combinedData2['Von Misses Stress'].mean()
+            results_list.append({'Value': 'Average (excluding 2% highest)', 'Von Misses Stress': average_von_misses_stress2})
+
+
             
             #Aditional areas
             
@@ -273,6 +282,7 @@ def main():
                 })
 
             results_df = pd.DataFrame(results_list)
+            pd.set_option('display.max_columns', None)
 
             print("Results:")
             print(results_df)
