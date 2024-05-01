@@ -12,7 +12,7 @@ bl_info = {
 }
 
 import bpy
-from bpy.types import Operator, Panel, PropertyGroup
+from bpy.types import Operator, Panel, PropertyGroup, UIList
 from bpy.props import StringProperty, EnumProperty, FloatProperty, CollectionProperty, IntProperty
 from bpy_extras.io_utils import ImportHelper
 import os
@@ -82,7 +82,6 @@ def process_point(operator, context, point_number, point_type):
         context.scene[f"{point_type}_point_coordinates"] = ""
         operator.report({'ERROR'}, f"No vertex selected as {point_type.capitalize()} Point {point_number}")
 
-        
 # Interface Panel
 class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_FilePathPanel_PT"
@@ -111,17 +110,6 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
 
         col1.operator("view3d.create_folder", text="Create Folder", icon='NEWFOLDER')
         col2.operator("view3d.submit_object", text="Submit main bone for FEA", icon='BONE_DATA')
-
-
-        # Rotate Elements Section
-        box = layout.box()
-        box.label(text="Rotate Elements")
-        split = box.split(factor=0.5)
-        col1 = split.column(align=True)
-        col2 = split.column(align=True)
-
-        col1.operator("view3d.rotate_elements", text="Rotate Y to Z", icon='FILE_REFRESH')
-        col2.operator("view3d.restore_orientation_axes", text="Restore Orientation Axes", icon='RECOVER_LAST')
 
         # Extract Surfaces Section
         box = layout.box()
@@ -165,7 +153,17 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
 
         col1.operator("view3d.submit_parameters", text="Submit Parameters", icon='EXPORT')
         col2.operator("view3d.delete_last_muscle_attachment", text="Delete last parameters submitted", icon='TRASH')
+        #################################
+        #New section
+        #################################
+        layout.template_list("VIEW3D_UL_MuscleParametersList", "", context.scene, "muscle_parameters2", context.scene, "muscle_parameters_index")
 
+        row = layout.row()
+        row.operator("view3d.remove_muscle_parameter", text="Remove")
+        #################################
+        #End of new section
+        #################################
+        
         # Contact Points Section
         box = layout.box()
         box.label(text="Contact Points", icon='FORCE_FORCE')
@@ -287,8 +285,7 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         row.prop(context.scene, "total_faces", text="Number of faces")
         row = box.row()
         row.operator("view3d.export_sensitivity_analysis", text="Export for Sensitivity Analysis")
-
-    
+   
 class VIEW3D_OT_BrowseFolderOperator(Operator, ImportHelper):
     bl_idname = "view3d.browse_folder"
     bl_label = "Browse Folder"
@@ -350,44 +347,7 @@ class VIEW3D_OT_SubmitMainObjectOperator(Operator):
             self.report({'ERROR'}, "No active object.")
 
         return {'FINISHED'}
-        
-# Rotate elements
-class VIEW3D_OT_RotateElementsOperator(bpy.types.Operator):
-    bl_idname = "view3d.rotate_elements"
-    bl_label = "Rotate Elements"
-    bl_options = {'REGISTER', 'UNDO'}
-    bl_description = "Rotate objects, changing the Y and Z axes to match other coordinate systems. Use with caution, as it affects the orientation of the objects. Make sure you are certain about the desired orientation before clicking."
-
-    def execute(self, context):
-        set_object_mode(context.active_object, 'OBJECT')
-        
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH':              
-                obj.rotation_euler.rotate_axis("X", math.radians(-90))
-                obj.rotation_euler.rotate_axis("Z", math.radians(-180))
-
-        self.report({'INFO'}, "Elements rotated from Y to Z")
-        return {'FINISHED'}
-
-# Restore axes
-class VIEW3D_OT_RestoreOrientationAxesOperator(bpy.types.Operator):
-    bl_idname = "view3d.restore_orientation_axes"
-    bl_label = "Restore Orientation Axes"
-    bl_options = {'REGISTER', 'UNDO'}
-    bl_description = "Restore the orientation of the axes. Click it only if needed or after exporting the files"
-
-
-    def execute(self, context):
-        set_object_mode(context.active_object, 'OBJECT')
-
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH':
-                obj.rotation_euler.rotate_axis("Z", math.radians(180))
-                obj.rotation_euler.rotate_axis("X", math.radians(90))
-
-        self.report({'INFO'}, "Orientation Axes restored")
-        return {'FINISHED'}
-        
+                
 class VIEW3D_OT_StartSelectionOperator(Operator):
     bl_idname = "view3d.start_selection"
     bl_label = "Start Selection"
@@ -399,16 +359,21 @@ class VIEW3D_OT_StartSelectionOperator(Operator):
         return bool(context.scene.selected_main_object)
 
     def execute(self, context):
+        active_object = bpy.data.objects.get(context.scene.selected_main_object)
+        context.view_layer.objects.active = active_object
+    
+        # Ensure the active object is in 'OBJECT' mode before deselecting all
+        if active_object.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+    
         bpy.ops.object.select_all(action='DESELECT')
-        context.view_layer.objects.active = bpy.data.objects.get(context.scene.selected_main_object)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')      
         bpy.context.tool_settings.mesh_select_mode[2] = True        
         bpy.context.tool_settings.mesh_select_mode[0] = False 
         bpy.context.tool_settings.mesh_select_mode[1] = False        
         bpy.ops.wm.tool_set_by_id(name="builtin.select_lasso", space_type='VIEW_3D')
-  
-
+    
         return {'FINISHED'}
 
 class VIEW3D_OT_SubmitSelectionOperator(Operator):
@@ -420,12 +385,36 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
     @classmethod
     def poll(cls, context):
         return bool(context.scene.submesh_name and context.scene.new_folder_name)
-        
+    
+    def is_valid_name(self, name):
+        # Check if name is not empty
+        if not name:
+            return False
+
+        # Check if name is not too long
+        if len(name) > 64:
+            return False
+
+        # Check if name contains only letters, numbers, and underscores
+        if not re.match('^[a-zA-Z0-9_]+$', name):
+            return False
+
+        return True
+      
     def execute(self, context):
         submesh_name = context.scene.submesh_name
 
+        # Validate names
+        if not self.is_valid_name(submesh_name):
+            self.report({'ERROR'}, f"Invalid submesh name '{submesh_name}'. The submesh name must be non-empty, contain only letters, numbers, and underscores, and be less than 64 characters long.")
+            return {'CANCELLED'}
+
         # Set object mode
-        bpy.ops.object.mode_set(mode='OBJECT')
+        try:
+            bpy.ops.object.mode_set(mode='OBJECT')
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to set object mode: {str(e)}")
+            return {'CANCELLED'}
 
         # Check if vertex group already exists
         vgroup = bpy.context.active_object.vertex_groups.get(submesh_name)
@@ -454,26 +443,33 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
                 bpy.data.objects.remove(existing_object)
 
             # Create new mesh
-            bpy.ops.object.duplicate(linked=False)
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.select_all(action='INVERT')
-            bpy.ops.mesh.delete(type='FACE')
-            bpy.ops.object.mode_set(mode='OBJECT')
+            try:
+                bpy.ops.object.duplicate(linked=False)
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='INVERT')
+                bpy.ops.mesh.delete(type='FACE')
+                bpy.ops.object.mode_set(mode='OBJECT')
+            except Exception as e:
+                self.report({'ERROR'}, f"Failed to create new mesh: {str(e)}")
+                return {'CANCELLED'}
 
             # Rename mesh
             bpy.context.active_object.name = submesh_name
 
-            # Move new mesh to the collection
-            collection.objects.link(bpy.context.active_object)
 
             # Delete duplicated mesh
             original_collection = bpy.context.active_object.users_collection[0]
+            
+            # Move new mesh to the collection
+            collection.objects.link(bpy.context.active_object)
+
             original_collection.objects.unlink(bpy.context.active_object)
 
             self.report({'INFO'}, f"Submesh '{submesh_name}' created and added to collection '{collection_name}'")
 
         else:
-            self.report({'ERROR'}, f"Collection '{collection_name}' not found")
+            self.report({'ERROR'}, f"Collection '{collection_name}' not found. Please create it first.")
+            return {'CANCELLED'}
 
         return {'FINISHED'}
 
@@ -486,15 +482,33 @@ class VIEW3D_OT_SelectVertexOperator(Operator):
         return bool(context.scene.selected_main_object)
 
     def execute(self, context):
+        object_name = context.scene.selected_main_object
+        obj = bpy.data.objects.get(object_name)
+
+        # Check if the object exists
+        if not obj:
+            self.report({'ERROR'}, f"Object '{object_name}' not found.")
+            return {'CANCELLED'}
+
+        # Check if the object is a mesh
+        if obj.type != 'MESH':
+            self.report({'ERROR'}, f"Object '{object_name}' is not a mesh.")
+            return {'CANCELLED'}
+
+        # Make the object the active object
+        context.view_layer.objects.active = obj
+
+        # Ensure the active object is in 'OBJECT' mode before switching to 'EDIT' mode
+        if obj.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+
         bpy.ops.object.select_all(action='DESELECT')
-        context.view_layer.objects.active = bpy.data.objects.get(context.scene.selected_main_object)
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.context.tool_settings.mesh_select_mode[0] = True 
         bpy.context.tool_settings.mesh_select_mode[1] = False
         bpy.context.tool_settings.mesh_select_mode[2] = False
         return {'FINISHED'}
-
 # Select focal point
 class VIEW3D_OT_SelectFocalPointOperator(Operator):
     bl_idname = "view3d.select_focal_point"
@@ -507,13 +521,34 @@ class VIEW3D_OT_SelectFocalPointOperator(Operator):
         return bool(context.scene.submesh_name and context.scene.selected_main_object)
 
     def execute(self, context):
+        object_name = context.scene.selected_main_object
+        obj = bpy.data.objects.get(object_name)
+
+        # Check if the object exists
+        if not obj:
+            self.report({'ERROR'}, f"Object '{object_name}' not found.")
+            return {'CANCELLED'}
+
+        # Check if the object is a mesh
+        if obj.type != 'MESH':
+            self.report({'ERROR'}, f"Object '{object_name}' is not a mesh.")
+            return {'CANCELLED'}
+
+        # Make the object the active object
+        context.view_layer.objects.active = obj
+
+        # Ensure the active object is in 'OBJECT' mode before switching to 'EDIT' mode
+        if obj.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        bpy.ops.object.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.context.tool_settings.mesh_select_mode[0] = True 
         bpy.context.tool_settings.mesh_select_mode[1] = False
         bpy.context.tool_settings.mesh_select_mode[2] = False
         return {'FINISHED'}
-# Submit focal point
+    
 class VIEW3D_OT_SubmitFocalPointOperator(Operator):
     bl_idname = "view3d.submit_focal_point"
     bl_label = "Submit Focal Point"
@@ -523,26 +558,38 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
     @classmethod
     def poll(cls, context):
         return bool(context.scene.submesh_name)
+
     def execute(self, context):
         active_object = context.active_object
 
-        if active_object and active_object.mode == 'EDIT':
+        # Check if the active object exists
+        if not active_object:
+            self.report({'ERROR'}, "No active object.")
+            return {'CANCELLED'}
+
+        # Check if the active object is a mesh
+        if active_object.type != 'MESH':
+            self.report({'ERROR'}, "Active object is not a mesh.")
+            return {'CANCELLED'}
+
+        if active_object.mode == 'EDIT':
             bpy.ops.object.mode_set(mode='OBJECT')
 
         selected_vertices = [v.co for v in active_object.data.vertices if v.select]
 
-        if selected_vertices:
-            coordinates = selected_vertices[0]
-            x, y, z = get_transformed_coordinates(active_object, coordinates)
+        # Check if at least one vertex is selected
+        if len(selected_vertices) == 0:
+            self.report({'ERROR'}, "Please select at least one vertex as the Focal Point.")
+            return {'CANCELLED'}
 
-            context.scene.focal_point_coordinates = f"{x:.3f},{y:.3f},{z:.3f}"
-            self.report({'INFO'}, f"Focal Point coordinates: {context.scene.focal_point_coordinates}")
-        else:
-            context.scene.focal_point_coordinates = ""
-            self.report({'ERROR'}, "No vertex selected as Focal Point")
+        # Calculate the average coordinates of the selected vertices
+        avg_coordinates = sum(selected_vertices, Vector()) / len(selected_vertices)
+        x, y, z = get_transformed_coordinates(active_object, avg_coordinates)
+
+        context.scene.focal_point_coordinates = f"{x:.3f},{y:.3f},{z:.3f}"
+        self.report({'INFO'}, f"Focal Point coordinates: {context.scene.focal_point_coordinates}")
 
         return {'FINISHED'}
-
 
 class VIEW3D_OT_SubmitParametersOperator(Operator):
     bl_idname = "view3d.submit_parameters"
@@ -608,7 +655,6 @@ class VIEW3D_OT_DeleteLastMuscleAttachmentOperator(Operator):
 
         return {'FINISHED'}
 
-
 class VIEW3D_OT_SelectContactPointOperator(VIEW3D_OT_SelectVertexOperator):
     
     bl_idname = "view3d.select_contact_point"
@@ -620,7 +666,6 @@ class VIEW3D_OT_SelectContactPointOperator(VIEW3D_OT_SelectVertexOperator):
     def poll(cls, context):
         return bool(context.scene.selected_main_object)
         
-
 class VIEW3D_OT_SubmitContactPointOperator1(Operator):
     bl_idname = "view3d.submit_contact_point1"
     bl_label = "Submit Contact Point 1"
@@ -634,7 +679,6 @@ class VIEW3D_OT_SubmitContactPointOperator1(Operator):
     def execute(self, context):
         process_point(self,context, 1, 'contact')
         return {'FINISHED'}
-
 
 class VIEW3D_OT_SubmitContactPointOperator2(Operator):
     bl_idname = "view3d.submit_contact_point2"
@@ -680,8 +724,7 @@ class VIEW3D_OT_SelectConstraintPointOperator(VIEW3D_OT_SelectVertexOperator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.selected_main_object)
-        
+        return bool(context.scene.selected_main_object)       
 
 class VIEW3D_OT_SubmitConstraintPointOperator1(Operator):
     bl_idname = "view3d.submit_constraint_point1"
@@ -710,7 +753,6 @@ class VIEW3D_OT_SubmitConstraintPointOperator2(Operator):
     def execute(self, context):
         process_point(self, context, 2, 'constraint')
         return {'FINISHED'}
-
 
 class VIEW3D_OT_ClearConstraintPointsOperator(Operator):
     bl_idname = "view3d.clear_constraint_points"
@@ -1447,10 +1489,8 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_BrowseFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_CreateFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_ExportMeshesOperator)
-    bpy.utils.register_class(VIEW3D_OT_RotateElementsOperator)
     bpy.utils.register_class(VIEW3D_OT_SelectFocalPointOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitFocalPointOperator)
-    bpy.utils.register_class(VIEW3D_OT_RestoreOrientationAxesOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitParametersOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitContactPointOperator1)
     bpy.utils.register_class(VIEW3D_OT_SubmitContactPointOperator2)
@@ -1467,6 +1507,7 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_ApplyForcesParametersOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitSampleOperator)
     bpy.utils.register_class(VIEW3D_OT_ExportSensitivityAnalysisOperator)
+
 
     bpy.types.Scene.contact_point1 = bpy.props.StringProperty(
         name="Contact Point 1",
@@ -1631,7 +1672,7 @@ def register():
             ('T+N', "Tangential-plus-normal-traction", "TN: Tangential-plus-normal-traction"),
         ],
         name="Options",
-        default='U',
+        default='T+N',
         description="Select an option",
     )
     bpy.types.Scene.select_more_iterations = bpy.props.IntProperty(
@@ -1742,10 +1783,8 @@ def unregister():
     bpy.utils.unregister_class(VIEW3D_OT_BrowseFolderOperator)
     bpy.utils.unregister_class(VIEW3D_OT_CreateFolderOperator)
     bpy.utils.unregister_class(VIEW3D_OT_ExportMeshesOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_RotateElementsOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SelectFocalPointOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitFocalPointOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_RestoreOrientationAxesOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitParametersOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitContactPointOperator1)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitContactPointOperator2)
