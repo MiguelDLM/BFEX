@@ -74,12 +74,19 @@ def process_point(operator, context, point_type):
             vertex_group_name = f"{point_type}_point{i}"
             vertex_group = context.active_object.vertex_groups.get(vertex_group_name)
 
-            bpy.ops.object.vertex_group_add()
-            vertex_group = context.active_object.vertex_groups[-1]
-            vertex_group.name = vertex_group_name
-            vert.select = True
-            bpy.ops.object.vertex_group_assign()
-            vert.select = False
+            if context.active_object.type != 'MESH':
+                operator.report({'ERROR'}, "Active object is not a mesh")
+            else:
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.object.vertex_group_add()
+                vertex_group = context.active_object.vertex_groups[-1]
+                vertex_group.name = vertex_group_name
+                vert.select = True
+                if not vert.select:
+                    operator.report({'ERROR'}, "Vertex is not selected")
+                else:
+                    bpy.ops.object.vertex_group_assign()
+                    vert.select = False
 
         set_object_mode(context.active_object, 'OBJECT')
     else:
@@ -154,7 +161,7 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         col2 = split.column(align=True)
 
         col1.operator("view3d.submit_parameters", text="Submit Parameters", icon='EXPORT')
-        col2.operator("view3d.delete_last_muscle_attachment", text="Delete last parameters submitted", icon='TRASH')
+        col2.operator("view3d.refresh_parameters", text="Refresh parameters list", icon='TRASH')
         
         # Contact Points Section
         box = layout.box()
@@ -580,9 +587,27 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
         force_value = context.scene.force_value
         selected_option = context.scene.selected_option
         focal_point_coordinates = [float(coord) for coord in context.scene.focal_point_coordinates.split(",")]
+        new_folder_name = context.scene.new_folder_name
+        collection = bpy.data.collections.new(new_folder_name)
 
+        # Create or clear the 'focal points' collection
+        if 'Focal points' in bpy.data.collections:
+            # Unlink the collection from all scenes
+            for scene in bpy.data.scenes:
+                if 'Focal points' in scene.collection.children:
+                    scene.collection.children.unlink(bpy.data.collections['Focal points'])
+            # Delete all objects in the collection
+            for obj in bpy.data.collections['Focal points'].objects:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            # Delete the collection
+            bpy.data.collections.remove(bpy.data.collections['Focal points'])
+
+        # Create a new 'focal points' collection
+        collection = bpy.data.collections.new('Focal points')
+        bpy.context.scene.collection.children.link(collection)
+        
+        
         # Convert coords to JSON
-        focal_point_coordinates_str = json.dumps(focal_point_coordinates, indent=None)
         muscle_parameters_str = context.scene.get("muscle_parameters", "[]")
         muscle_parameters = json.loads(muscle_parameters_str)
 
@@ -593,40 +618,71 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
             'focalpt': focal_point_coordinates,  
             'method': selected_option
         }
-        muscle_parameters.append(data)  
+
+        # Check if the name already exists in the 'file' field of any element in muscle_parameters
+        if any(param['file'] == data['file'] for param in muscle_parameters):
+            self.report({'WARNING'}, "New element not added, a focal point with this name already exists. Please delete the element from the scene and press 'update parameters'.")
+            self.report({'ERROR'}, "New element not added, a focal point with this name already exists. Please delete the element from the scene and press 'update parameters'.")
+        else:
+            muscle_parameters.append(data)
+
         json_str = json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False)
         context.scene["muscle_parameters"] = json_str
+
+
+        # Create a new object for each element in the dictionary
+        for data in muscle_parameters:
+            mesh = bpy.data.meshes.new('mesh')  # create a new mesh
+            name = data['file'][9:-5] + '_focal'
+            obj = bpy.data.objects.new(name, mesh)  # create a new object using the mesh
+
+            # Link the object to the scene
+            bpy.context.collection.objects.link(obj)
+
+            # Create a single vertex at the 'focalpt' position
+            mesh.from_pydata([data['focalpt']], [], [])
+
+            # Get the original collection of the object
+            original_collection = obj.users_collection[0]
+
+            # Add the object to the 'focal points' collection
+            bpy.data.collections['Focal points'].objects.link(obj)
+
+            # Remove the object from the original collection
+            original_collection.objects.unlink(obj)
+
         self.report({'INFO'}, "Stored data:\n" + json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False))
         return {'FINISHED'}
 
-class VIEW3D_OT_DeleteLastMuscleAttachmentOperator(Operator):
-    bl_idname = "view3d.delete_last_muscle_attachment"
-    bl_label = "Delete Last Muscle Attachment"
+
+class VIEW3D_OT_RefreshParametersOperator(Operator):
+    bl_idname = "view3d.refresh_parameters"
+    bl_label = "Refresh parameters"
     bl_options = {'REGISTER', 'UNDO'}
-    bl_description = "Deletes the last parameters stored in a dictionary. Be aware, if you click it before submitting the parameters, the last input parameters will be deleted. WARNING: Use with caution!"
+    bl_description = "Refresh the muscle parameters list based on the objects in the 'Focal points' collection."
 
     def execute(self, context):
-        
+        # Get all objects in the 'Focal points' collection
+        focal_points = bpy.data.collections['Focal points'].objects
+
+        # Create a list of object names
+        object_names = ["f'{path}/" + obj.name.split('_focal')[0] + ".stl'" for obj in focal_points]
         muscle_parameters_str = context.scene.get("muscle_parameters", "[]")
         muscle_parameters = json.loads(muscle_parameters_str)
+        # Check if there are any elements in the muscle_parameters list that match the object_names
+        muscle_parameters2 = []
+        for obj_name in object_names:
+            for param in muscle_parameters:
+                if param['file'] == obj_name:
+                    muscle_parameters2.append(param)
+        
 
-       
-        if muscle_parameters:
-            last_entry = muscle_parameters[-1]          
-            muscle_parameters.pop()
-
-            json_str = json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False)
-            context.scene["muscle_parameters"] = json_str
-
-            self.report({'INFO'}, f"Deleted last muscle attachment parameters. Updated muscle parameters:\n{json_str}")
-
-            context.scene.submesh_name = "" 
-
-        else:
-            self.report({'WARNING'}, "No muscle attachments to delete.")
+        # Convert muscle_parameters to JSON
+        json_str = json.dumps(muscle_parameters2, indent=4, separators=(',', ': '), ensure_ascii=False)
+        print("Example of Muscle parameters after filter:", json_str)   
+        context.scene["muscle_parameters"] = json_str
 
         return {'FINISHED'}
-
 class VIEW3D_OT_SelectContactPointOperator(VIEW3D_OT_SelectVertexOperator):
     
     bl_idname = "view3d.select_contact_point"
@@ -752,8 +808,6 @@ class VIEW3D_OT_ExportMeshesOperator(bpy.types.Operator):
                 elif num_constraint_pts == 2:
                     constraint_axes = f"'axis_pt1': [{constraint_axes_cp1}],\n\t\t'axis_pt2': [{constraint_axes_cp2}]"
 
-                # Add debug info
-                self.report({'ERROR'}, f"Number of constraint points: {num_constraint_pts}")  
                 for group in selected_main_object.vertex_groups:
                     group_name = group.name
                     if group_name.startswith(("contact_point", "constraint_point")):
@@ -836,7 +890,7 @@ def parms(d={{}}):
 
     
     # material properties
-    p['density'] = 1.662e-9  # [T/mm³]
+    p['density'] = 1.662e-9  # [T/mm]
     p['Young'] = {youngs_modulus}     # [MPa]
     p['Poisson'] = {poissons_ratio}      # [-]
 
@@ -1465,7 +1519,7 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_SelectConstraintPointOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitConstraintPointOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitMainObjectOperator)
-    bpy.utils.register_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
+    bpy.utils.register_class(VIEW3D_OT_RefreshParametersOperator)
     bpy.utils.register_class(VIEW3D_OT_RunFossilsOperator)
     bpy.utils.register_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_ApplyForcesParametersOperator)
@@ -1724,11 +1778,12 @@ def unregister():
     bpy.utils.unregister_class(VIEW3D_OT_SelectConstraintPointOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitConstraintPointOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SubmitMainObjectOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_DeleteLastMuscleAttachmentOperator)
+    bpy.utils.unregister_class(VIEW3D_OT_RefreshParametersOperator)
     bpy.utils.unregister_class(VIEW3D_OT_RunFossilsOperator)
     bpy.utils.unregister_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
     bpy.utils.unregister_class(VIEW3D_OT_ApplyForcesParametersOperator)
     bpy.utils.unregister_class(VIEW3D_OT_ExportSensitivityAnalysisOperator)
+    bpy.utils.unregister_class(VIEW3D_OT_SubmitSampleOperator)
 
 
     del bpy.types.Scene.selected_folder
