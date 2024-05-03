@@ -47,9 +47,9 @@ def process_point(operator, context, point_type):
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.mode_set(mode='EDIT')
     active_object = bpy.context.active_object
-    vertices = [v.co for v in context.active_object.data.vertices if v.select]
+    selected_verts = [v for v in context.active_object.data.vertices if v.select]
 
-    if vertices:
+    if selected_verts:
         # Count the vertex groups that match the prefix
         matching_vertex_groups = sorted(filter(lambda vg: vg.name.startswith(f"{point_type}_point"), context.active_object.vertex_groups), key=lambda vg: vg.name)
         
@@ -58,27 +58,32 @@ def process_point(operator, context, point_type):
             operator.report({'ERROR'}, "Only two constraint points are allowed. Delete one of the existing constraint points before adding a new one.")
             return
 
+        # If the point type is 'constraint' and more than one vertex is selected, cancel the operation
+        if point_type == 'constraint' and len(selected_verts) > 1:
+            operator.report({'ERROR'}, "Only one vertex can be selected to create a constraint point.")
+            return
+
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.mode_set(mode='EDIT')
-        selected_verts = [v.co for v in context.active_object.data.vertices if v.select]
-        
+
         # Rename the existing vertex groups in sequential order
         for i, vertex_group in enumerate(matching_vertex_groups, start=1):
             vertex_group.name = f"{point_type}_point{i}"
-        
-        point_number = len(matching_vertex_groups) + 1
 
-        vertex_group_name = f"{point_type}_point{point_number}"
-        vertex_group = context.active_object.vertex_groups.get(vertex_group_name)
+        for i, vert in enumerate(selected_verts, start=len(matching_vertex_groups) + 1):
+            vertex_group_name = f"{point_type}_point{i}"
+            vertex_group = context.active_object.vertex_groups.get(vertex_group_name)
 
-        bpy.ops.object.vertex_group_add()
-        vertex_group = context.active_object.vertex_groups[-1]
-        vertex_group.name = vertex_group_name
-        bpy.ops.object.vertex_group_assign()
-        
+            bpy.ops.object.vertex_group_add()
+            vertex_group = context.active_object.vertex_groups[-1]
+            vertex_group.name = vertex_group_name
+            vert.select = True
+            bpy.ops.object.vertex_group_assign()
+            vert.select = False
+
         set_object_mode(context.active_object, 'OBJECT')
     else:
-        operator.report({'ERROR'}, f"No vertex selected as {point_type.capitalize()} Point {point_number}")
+        operator.report({'ERROR'}, f"No vertex selected as {point_type.capitalize()} Point")
 # Interface Panel
 class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_FilePathPanel_PT"
@@ -494,24 +499,15 @@ class VIEW3D_OT_SelectFocalPointOperator(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.submesh_name and context.scene.selected_main_object)
+        return context.active_object is not None
 
     def execute(self, context):
-        object_name = context.scene.selected_main_object
-        obj = bpy.data.objects.get(object_name)
-
-        # Check if the object exists
-        if not obj:
-            self.report({'ERROR'}, f"Object '{object_name}' not found.")
-            return {'CANCELLED'}
+        obj = context.active_object
 
         # Check if the object is a mesh
         if obj.type != 'MESH':
-            self.report({'ERROR'}, f"Object '{object_name}' is not a mesh.")
+            self.report({'ERROR'}, f"Object '{obj.name}' is not a mesh.")
             return {'CANCELLED'}
-
-        # Make the object the active object
-        context.view_layer.objects.active = obj
 
         # Ensure the active object is in 'OBJECT' mode before switching to 'EDIT' mode
         if obj.mode != 'OBJECT':
@@ -952,7 +948,6 @@ class VIEW3D_OT_OpenFEAResultsFolderOperator(bpy.types.Operator):
 def generate_random_color():
     return (random.random(), random.random(), random.random(), 1.0)
 
-
 class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
     bl_idname = "view3d.apply_forces_parameters"
     bl_label = "Apply Forces and Parameters"
@@ -1109,7 +1104,6 @@ class VIEW3D_OT_ApplyForcesParametersOperator(bpy.types.Operator):
             if material:
                 cone.data.materials.append(material)
                 
-
 class VIEW3D_OT_SubmitSampleOperator(bpy.types.Operator):
     bl_idname = "view3d.submit_sample"
     bl_label = "Submit Sample"
