@@ -11,6 +11,20 @@ bl_info = {
     "support": "COMMUNITY",
 }
 
+import sys
+
+# the following code allows us to reload the add-on without restarting Blender
+# this is useful during development
+# see https://blenderartists.org/t/how-to-reload-blender-addon-with-nested-modules-using-reload-scripts/1477986
+if "bpy" in locals():
+    if __name__ in sys.modules:
+        del sys.modules[__name__]
+
+    dotted = __name__ + "."
+    for name in tuple(sys.modules):
+        if name.startswith(dotted):
+            del sys.modules[name]
+
 import bpy
 from bpy.types import Operator, PropertyGroup, UIList
 from bpy.props import StringProperty, EnumProperty, FloatProperty, CollectionProperty, IntProperty
