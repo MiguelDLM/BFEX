@@ -41,6 +41,9 @@ from .visual_elements import VIEW3D_OT_VisualElementsOperator
 from .submit_sample import VIEW3D_OT_SubmitSampleOperator
 from .sensitivity_analysis import VIEW3D_OT_ExportSensitivityAnalysisOperator
 from .refresh_fixations import View3D_OT_Refresh_FixationsOperator
+from .submit_load import View3D_OT_Submit_load
+from .refresh_loads import OBJECT_OT_RefreshLoads   
+from .submit_focal_load import View3D_OT_SubmitFocalLoad
 
 
 
@@ -71,6 +74,10 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_SubmitSampleOperator)
     bpy.utils.register_class(VIEW3D_OT_ExportSensitivityAnalysisOperator)
     bpy.utils.register_class(View3D_OT_Refresh_FixationsOperator)
+    bpy.utils.register_class(View3D_OT_Submit_load)
+    bpy.utils.register_class(View3D_OT_SubmitFocalLoad)
+    bpy.utils.register_class(OBJECT_OT_RefreshLoads)
+    
     
 
     def update_total_faces(self, context):
@@ -274,6 +281,59 @@ def register():
         soft_max=10000000,
         update=update_scale_factor,
     )
+    bpy.types.Scene.load_input_method = bpy.props.EnumProperty(
+        name="Load Input Method",
+        description="Choose how to define loads",
+        items=[
+            ('VERTICES', "Use Vertices", "Define loads using vertices"),
+            ('MANUAL', "Define Manually", "Manually define load values"),
+        ],
+        default='MANUAL',
+    )
+    bpy.types.Scene.load_name = bpy.props.StringProperty(
+        name="Load Name",
+        default="",
+        description="Name for the load"
+    )
+    bpy.types.Scene.load_value = bpy.props.FloatProperty(
+        name="Load Value",
+        default=0.0,
+        min=0.0,
+        description="Value for the load"
+    )
+    bpy.types.Scene.load_x = bpy.props.FloatProperty(
+        name="X",
+        default=0.0,
+        description="Load value for X axis",
+        precision=2,
+    )
+    bpy.types.Scene.load_y = bpy.props.FloatProperty(
+        name="Y",
+        default=0.0,
+        description="Load value for Y axis",
+        precision=2,
+    )
+    bpy.types.Scene.load_z = bpy.props.FloatProperty(
+        name="Z",
+        default=0.0,
+        description="Load value for Z axis",
+        precision=2,
+    )
+    bpy.types.Scene.load_force = bpy.props.FloatProperty(
+            name="Load Force",
+            default=0.0,
+            description="Load force value",
+        )
+    bpy.types.Scene.loads = bpy.props.StringProperty(
+
+        name="Loads",
+        description="Loads for the model in a specific format"
+    )
+    bpy.types.Scene.loads_focal = bpy.props.StringProperty(
+        name="Loads Focal",
+        description="Loads for the model in a specific format"
+    )
+
 
 def unregister():
     bpy.utils.unregister_class(VIEW3D_PT_FilePathPanel_PT)
@@ -295,6 +355,9 @@ def unregister():
     bpy.utils.unregister_class(VIEW3D_OT_SubmitSampleOperator)
     bpy.utils.unregister_class(VIEW3D_OT_SelectVertexOperator)
     bpy.utils.unregister_class(View3D_OT_Refresh_FixationsOperator)
+    bpy.utils.unregister_class(View3D_OT_Submit_load)
+    bpy.utils.unregister_class(View3D_OT_SubmitFocalLoad)
+    bpy.utils.unregister_class(OBJECT_OT_RefreshLoads)
 
 
     del bpy.types.Scene.selected_folder
@@ -323,6 +386,8 @@ def unregister():
     del bpy.types.Scene.sample_name
     del bpy.types.Scene.scale_factor
     del bpy.types.Scene.total_faces
+    del bpy.types.Scene.load_input_method 
+
     
 
 if __name__ == "__main__":
