@@ -45,6 +45,7 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
                 youngs_modulus = context.scene.youngs_modulus
                 poissons_ratio = round(context.scene.poissons_ratio, 3)
                 fixations = context.scene.get("fixations", [])
+                loads = context.scene.get("loads", [])
                                       
                 selected_main_object = bpy.data.objects.get(context.scene.selected_main_object)
    
@@ -94,7 +95,7 @@ def parms(d={{}}):
     p['bone'] = f'{{path}}/{file_name_main}'
     p['muscles'] = {muscle_parameters}
     p['fixations'] = {fixations}
-
+    p['loads'] = {loads}
     
     # material properties
     p['density'] = 1.662e-9  # [T/mm]
