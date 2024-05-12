@@ -14,7 +14,10 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
     
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.submesh_name and context.scene.new_folder_name)
+        return (context.active_object is not None and
+                context.active_object.type == 'MESH' and
+                context.active_object.mode == 'EDIT' and
+                bool(context.scene.submesh_name and context.scene.new_folder_name))
     
     def is_valid_name(self, name):
         # Check if name is not empty

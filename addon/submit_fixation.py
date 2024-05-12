@@ -15,7 +15,10 @@ class VIEW3D_OT_SubmitFixationPointOperator(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.selected_main_object)
+        return (context.active_object is not None and
+                context.active_object.type == 'MESH' and
+                context.active_object.mode == 'EDIT' and
+                bool(context.scene.selected_main_object))
     
     def execute(self, context):
         point_type = context.scene.fixation_type
@@ -34,35 +37,37 @@ class VIEW3D_OT_SubmitFixationPointOperator(Operator):
     
         if "fixations" not in context.scene:
             context.scene["fixations"] = []
-    
+        
         json_data = json.loads(context.scene["fixations"]) if context.scene["fixations"] else []
-    
+        
         for i, vert in enumerate(selected_verts):
             bpy.ops.object.mode_set(mode='OBJECT')  
             context.active_object.data.vertices.foreach_set("select", [False] * len(context.active_object.data.vertices))  
             vert.select = True  
             bpy.ops.object.mode_set(mode='EDIT') 
-    
+        
             vertex_group_name = f"{point_type}_point{i + 1 + len(json_data)}"
             bpy.ops.object.vertex_group_add()
             vertex_group = context.active_object.vertex_groups[-1]
             vertex_group.name = vertex_group_name
             bpy.ops.object.vertex_group_assign()
-    
-            bpy.ops.object.mode_set(mode='OBJECT') 
             nodes = [list(vert.co.to_tuple())]  
-    
+        
             new_data = {
                 "name": vertex_group_name,
                 "nodes": nodes,
                 "direction": direction
             }
-    
+        
             json_data.append(new_data)
-    
+        
+            if i == len(selected_verts) - 1:
+                coords_str = "{:.2f}, {:.2f}, {:.2f}".format(vert.co.x, vert.co.y, vert.co.z)
+                context.scene.fixation_point_coordinates = coords_str
+        
         json_str = json.dumps(json_data, indent=4, separators=(',', ': '), ensure_ascii=False)
         context.scene["fixations"] = json_str
-    
+        bpy.ops.object.mode_set(mode='OBJECT')
         self.report({'INFO'}, f"Stored data: {json_str}")
         return {'FINISHED'}
       

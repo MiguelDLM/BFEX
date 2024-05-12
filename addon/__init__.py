@@ -23,7 +23,7 @@ import mathutils
 import random
 from mathutils import Vector, kdtree
 
-from .menu import VIEW3D_PT_FilePathPanel_PT
+from .menu import VIEW3D_PT_FEITOMenu_PT
 from .browse_folder import VIEW3D_OT_BrowseFolderOperator
 from .create_folder_and_collection import VIEW3D_OT_CreateFolderOperator
 from .submit_main_object import VIEW3D_OT_SubmitMainObjectOperator
@@ -42,7 +42,7 @@ from .submit_sample import VIEW3D_OT_SubmitSampleOperator
 from .sensitivity_analysis import VIEW3D_OT_ExportSensitivityAnalysisOperator
 from .refresh_fixations import View3D_OT_Refresh_FixationsOperator
 from .submit_load import View3D_OT_Submit_load
-from .refresh_loads import OBJECT_OT_RefreshLoads   
+from .refresh_loads import VIEW3D_OT_RefreshLoadsOperator   
 from .submit_focal_load import View3D_OT_SubmitFocalLoad
 
 
@@ -55,7 +55,7 @@ def set_object_mode(obj, mode):
 
 
 def register():
-    bpy.utils.register_class(VIEW3D_PT_FilePathPanel_PT)
+    bpy.utils.register_class(VIEW3D_PT_FEITOMenu_PT)
     bpy.utils.register_class(VIEW3D_OT_BrowseFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_CreateFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitMainObjectOperator)
@@ -76,7 +76,7 @@ def register():
     bpy.utils.register_class(View3D_OT_Refresh_FixationsOperator)
     bpy.utils.register_class(View3D_OT_Submit_load)
     bpy.utils.register_class(View3D_OT_SubmitFocalLoad)
-    bpy.utils.register_class(OBJECT_OT_RefreshLoads)
+    bpy.utils.register_class(VIEW3D_OT_RefreshLoadsOperator)
     
     
 
@@ -212,9 +212,9 @@ def register():
     )
 
     bpy.types.Scene.fixation_point_coordinates = StringProperty(
-        name="Contact Point Coordinates",
+        name="Fixation Point Coordinates",
         default="",
-        description="Coordinates of the selected Contact Point",
+        description="Coordinates of the selected Fixation Point",
     )
     
     bpy.types.Scene.display_existing_results = bpy.props.BoolProperty(
@@ -336,57 +336,70 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_class(VIEW3D_PT_FilePathPanel_PT)
-    bpy.utils.unregister_class(VIEW3D_OT_StartSelectionOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_SubmitSelectionOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_BrowseFolderOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_CreateFolderOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_ExportMeshesOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_SelectFocalPointOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_SubmitFocalPointOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_SubmitParametersOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_SubmitFixationPointOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_SubmitMainObjectOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_RefreshParametersOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_RunFossilsOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_VisualElementsOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_ExportSensitivityAnalysisOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_SubmitSampleOperator)
-    bpy.utils.unregister_class(VIEW3D_OT_SelectVertexOperator)
-    bpy.utils.unregister_class(View3D_OT_Refresh_FixationsOperator)
-    bpy.utils.unregister_class(View3D_OT_Submit_load)
-    bpy.utils.unregister_class(View3D_OT_SubmitFocalLoad)
-    bpy.utils.unregister_class(OBJECT_OT_RefreshLoads)
+    classes = [
+        VIEW3D_PT_FEITOMenu_PT,
+        VIEW3D_OT_StartSelectionOperator, 
+        VIEW3D_OT_SubmitSelectionOperator,
+        VIEW3D_OT_BrowseFolderOperator,
+        VIEW3D_OT_CreateFolderOperator,
+        VIEW3D_OT_ExportMeshesOperator,
+        VIEW3D_OT_SelectFocalPointOperator,
+        VIEW3D_OT_SubmitFocalPointOperator,
+        VIEW3D_OT_SubmitParametersOperator,
+        VIEW3D_OT_SubmitFixationPointOperator,
+        VIEW3D_OT_SubmitMainObjectOperator,
+        VIEW3D_OT_RefreshParametersOperator,
+        VIEW3D_OT_RunFossilsOperator,
+        VIEW3D_OT_OpenFEAResultsFolderOperator,
+        VIEW3D_OT_VisualElementsOperator,
+        VIEW3D_OT_ExportSensitivityAnalysisOperator,
+        VIEW3D_OT_SubmitSampleOperator,
+        VIEW3D_OT_SelectVertexOperator,
+        View3D_OT_Refresh_FixationsOperator,
+        View3D_OT_Submit_load,
+        View3D_OT_SubmitFocalLoad,
+        VIEW3D_OT_RefreshLoadsOperator,
+    ]
+    
+    for cls in classes:
+        try:
+            bpy.utils.unregister_class(cls)
+        except RuntimeError as e:
+            print(f"Error unregistering class {cls.__name__}: {e}")
 
-
-    del bpy.types.Scene.selected_folder
-    del bpy.types.Scene.new_folder_name
-    del bpy.types.Scene.submesh_name
-    del bpy.types.Scene.focal_point_coordinates
-    del bpy.types.Scene.force_value
-    del bpy.types.Scene.selected_option
-    del bpy.types.Scene.fixation_x
-    del bpy.types.Scene.fixation_y
-    del bpy.types.Scene.fixation_z
-    del bpy.types.Scene.display_existing_results
-    del bpy.types.Scene.open_results_when_finish
-    del bpy.types.Scene.run_as_admin
-    del bpy.types.Scene.show_constraint_points
-    del bpy.types.Scene.show_contact_points
-    del bpy.types.Scene.show_attachment_areas
-    del bpy.types.Scene.show_force_directions
-    del bpy.types.Scene.selected_main_object
-    del bpy.types.Scene.muscle_parameters
-    del bpy.types.Scene.fixations
-    del bpy.types.Scene.fixation_type
-    del bpy.types.Scene.fixation_point_coordinates
-    del bpy.types.Scene.youngs_modulus
-    del bpy.types.Scene.poissons_ratio
-    del bpy.types.Scene.sample_name
-    del bpy.types.Scene.scale_factor
-    del bpy.types.Scene.total_faces
-    del bpy.types.Scene.load_input_method 
+    properties = [
+        "selected_folder",
+        "new_folder_name",
+        "submesh_name",
+        "focal_point_coordinates",
+        "force_value",
+        "selected_option",
+        "fixation_x",
+        "fixation_y",
+        "fixation_z",
+        "display_existing_results",
+        "open_results_when_finish",
+        "run_as_admin",
+        "show_constraint_points",
+        "show_contact_points",
+        "show_attachment_areas",
+        "show_force_directions",
+        "selected_main_object",
+        "muscle_parameters",
+        "fixations",
+        "fixation_type",
+        "fixation_point_coordinates",
+        "youngs_modulus",
+        "poissons_ratio",
+        "sample_name",
+        "scale_factor",
+        "total_faces",
+        "load_input_method",
+    ]
+    
+    for prop in properties:
+        if hasattr(bpy.types.Scene, prop):
+            delattr(bpy.types.Scene, prop)
 
     
 

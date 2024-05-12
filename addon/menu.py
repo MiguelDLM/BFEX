@@ -4,8 +4,8 @@
 import bpy
 from bpy.types import Operator, Panel
 
-class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
-    bl_idname = "VIEW3D_PT_FilePathPanel_PT"
+class VIEW3D_PT_FEITOMenu_PT(bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_FEITOMenu_PT"
     bl_label = "FEITO"
     bl_category = "FEITO"
     bl_space_type = "VIEW_3D"
