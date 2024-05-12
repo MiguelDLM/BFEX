@@ -4,7 +4,7 @@
 from bpy.types import Operator
 import json
 
-class OBJECT_OT_RefreshLoads(Operator):
+class VIEW3D_OT_RefreshLoadsOperator(Operator):
     bl_idname = "view3d.refresh_loads"
     bl_label = "Refresh Loads"
     bl_description = "Refresh loads from the file"
