@@ -33,6 +33,7 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
         poissons_ratio = round(context.scene.poissons_ratio, 3) 
         scale_factor = context.scene.scale_factor
         fixations = context.scene.get("fixations", [])
+        loads = context.scene.get("loads", [])
         
         # Check if the collection already exists
         if sensitivity_collection is None:
@@ -125,8 +126,25 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
                 else:
                     print(f"Skipping node {node} because nearest_vertex is None")
 
+        new_loads = loads
+        new_loads_list = json.loads(new_loads)
+        for load in new_loads_list:
+            for node in load['nodes']:
+                # Transform the node coordinates to world space
+                node_world = copy_main_object.matrix_world @ Vector(node)
+                nearest_vertex = find_nearest(tree, node_world)
+                if nearest_vertex:
+                    # Convert from left-handed to right-handed coordinates
+                    nearest_vertex_coordinates = list(nearest_vertex[0])
+                    nearest_vertex_coordinates[1] *= -1
+                    nearest_vertex_coordinates[0] *= -1
+                    node[:] = nearest_vertex_coordinates  
+                else:
+                    print(f"Skipping node {node} because nearest_vertex is None")
+
         #convert the list to a JSON string
         new_fixations = json.dumps(new_fixations_list, indent=4, separators=(',', ': '), ensure_ascii=False)
+        new_loads = json.dumps(new_loads_list, indent=4, separators=(',', ': '), ensure_ascii=False)        
 
         bpy.context.view_layer.objects.active = copy_main_object
         vertex_group_coordinates = {}
@@ -211,6 +229,7 @@ def parms(d={{}}):
     p['bone'] = f'{{path}}/{file_name_main}'
     p['muscles'] = {muscle_parameters}
     p['fixations'] = {new_fixations}
+    p['loads'] = {new_loads}
     
     # material properties
     p['density'] = 1.662e-9  # [T/mm³]

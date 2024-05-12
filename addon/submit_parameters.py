@@ -22,9 +22,14 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
         file_name = f"{last_submesh_name}.stl" 
         force_value = context.scene.force_value
         selected_option = context.scene.selected_option
-        focal_point_coordinates = [float(coord) for coord in context.scene.focal_point_coordinates.split(",")]
         new_folder_name = context.scene.new_folder_name
         collection = bpy.data.collections.new(new_folder_name)
+
+        if not context.scene.focal_point_coordinates or context.scene.focal_point_coordinates == "":
+            self.report({'ERROR'}, "Please select a vertex as the Focal Point before submitting the parameters.")
+            return {'CANCELLED'}
+        else:
+            focal_point_coordinates = [float(coord) for coord in context.scene.focal_point_coordinates.split(",")]
 
         # Create or clear the 'focal points' collection
         if 'Focal points' in bpy.data.collections:
@@ -37,6 +42,7 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
                 bpy.data.objects.remove(obj, do_unlink=True)
             # Delete the collection
             bpy.data.collections.remove(bpy.data.collections['Focal points'])
+
 
         # Create a new 'focal points' collection
         collection = bpy.data.collections.new('Focal points')
@@ -58,6 +64,7 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
         # Check if the name already exists in the 'file' field of any element in muscle_parameters
         if any(param['file'] == data['file'] for param in muscle_parameters):
             self.report({'ERROR'}, "New element not added, a focal point with this name already exists. Please delete the element from the scene and press 'update parameters'.")
+            return {'CANCELLED'}
         else:
             muscle_parameters.append(data)
 
@@ -86,5 +93,6 @@ class VIEW3D_OT_SubmitParametersOperator(Operator):
             # Remove the object from the original collection
             original_collection.objects.unlink(obj)
 
+        context.scene.focal_point_coordinates = ""
         self.report({'INFO'}, "Stored data:\n" + json.dumps(muscle_parameters, indent=4, separators=(',', ': '), ensure_ascii=False))
         return {'FINISHED'}

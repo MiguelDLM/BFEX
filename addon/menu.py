@@ -4,8 +4,8 @@
 import bpy
 from bpy.types import Operator, Panel
 
-class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
-    bl_idname = "VIEW3D_PT_FilePathPanel_PT"
+class VIEW3D_PT_FEITOMenu_PT(bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_FEITOMenu_PT"
     bl_label = "FEITO"
     bl_category = "FEITO"
     bl_space_type = "VIEW_3D"
@@ -108,6 +108,41 @@ class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
         # Text boxes to enter values
         col1.prop(context.scene, "youngs_modulus", text="Young's Modulus")
         col2.prop(context.scene, "poissons_ratio", text="Poisson's Ratio")
+
+        # Loads Section
+        box = layout.box()
+        box.label(text="Loads", icon='FORCE_MAGNETIC')
+        
+        row = box.row()
+        row.prop(context.scene, "load_input_method", expand=True)
+        
+        if context.scene.load_input_method == 'VERTICES':
+
+            row = box.row()
+            row.prop(context.scene, "load_name", text="Load name")
+            row = box.row()
+            row.operator("view3d.select_fixation_point", text="Select Load points", icon='RESTRICT_SELECT_OFF')
+            row.prop(context.scene, "load_force", text="Load Force")
+            row = box.row()
+            row.operator("view3d.submit_focal_load", text="Submit Focal Load", icon='EXPORT')
+            row.operator("view3d.submit_load", text="Submit Load", icon='EXPORT')
+            row = box.row()
+            row.operator("view3d.refresh_loads", text="Refresh loads list", icon='TRASH')
+        elif context.scene.load_input_method == 'MANUAL':
+            row = box.row()
+            row.prop(context.scene, "load_name", text="Load name")
+            row = box.row()
+            box.label(text="Input the load forces in Newtons (N)")
+            row = box.row()
+            row.prop(context.scene, "load_x", text="Load in X")
+            row.prop(context.scene, "load_y", text="Load in Y")
+            row.prop(context.scene, "load_z", text="Load in Z")
+            row = box.row()
+            row.operator("view3d.select_fixation_point", text="Select Load Faces", icon='RESTRICT_SELECT_OFF')
+            row.operator("view3d.submit_load", text="Submit Load", icon='EXPORT')
+            row = box.row()
+            row.operator("view3d.refresh_loads", text="Refresh loads list", icon='TRASH')
+            
 
 
         # Visual elements section
