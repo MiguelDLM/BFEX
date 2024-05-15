@@ -15,7 +15,10 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
     
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.submesh_name)
+        return (context.active_object is not None and
+                context.active_object.type == 'MESH' and
+                context.active_object.mode == 'EDIT' and
+                bool(context.scene.submesh_name))
     
     def execute(self, context):
         active_object = context.active_object
@@ -51,6 +54,7 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
         x, y, z = get_transformed_coordinates(active_object, avg_coordinates)
 
         context.scene.focal_point_coordinates = f"{x:.3f},{y:.3f},{z:.3f}"
+        bpy.ops.object.mode_set(mode='OBJECT')  
         self.report({'INFO'}, f"Focal Point coordinates: {context.scene.focal_point_coordinates}")
 
         return {'FINISHED'}
