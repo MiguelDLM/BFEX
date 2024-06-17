@@ -7,6 +7,7 @@ import random
 import json
 from bpy.types import Operator
 from mathutils import Vector
+import bmesh
 
 class VIEW3D_OT_VisualElementsOperator(Operator):
     bl_idname = "view3d.visual_elements"
@@ -35,7 +36,7 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
             cone = bpy.context.object
             cone.name = object_name
     
-            bpy.ops.mesh.primitive_cylinder_add(radius=0.5, depth=2, location=(location_coords[0], location_coords[1], location_coords[2] - 1), rotation=(0, 0, 0))
+            bpy.ops.mesh.primitive_cylinder_add(radius=0.4, depth=2, location=(location_coords[0], location_coords[1], location_coords[2] - 1), rotation=(0, 0, 0))
             cylinder = bpy.context.object
             cylinder.name = object_name + "_Cylinder"
     
@@ -63,6 +64,28 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                 cone.rotation_euler = rotation_difference.to_euler()
     
             collection.objects.link(cone)
+
+            bpy.ops.object.mode_set(mode='EDIT')
+            obj = bpy.context.active_object
+            mesh = bmesh.from_edit_mesh(obj.data)
+            bpy.context.tool_settings.mesh_select_mode = (True, False, False)
+            mesh.verts.ensure_lookup_table()
+            for v in mesh.verts:
+                v.select = False
+            mesh.select_flush(False)
+            if len(mesh.verts) > 12:
+                mesh.verts[12].select = True
+                mesh.select_flush(True)
+                bmesh.update_edit_mesh(obj.data)
+                bpy.ops.view3d.snap_cursor_to_selected()
+            bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.origin_set(type='ORIGIN_CURSOR', center='MEDIAN')
+            bpy.context.scene.cursor.location = location_coords
+            obj.location = bpy.context.scene.cursor.location
+
+            # scale the cone using the value in arrows_size property
+            obj.scale = (bpy.context.scene.arrows_size, bpy.context.scene.arrows_size, bpy.context.scene.arrows_size)
+
     
             for old_collection in cone.users_collection:
                 if old_collection.name != "Visual elements":
@@ -70,6 +93,7 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
     
             if material:
                 cone.data.materials.append(material)
+
 
     def execute(self, context):
         if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
@@ -162,7 +186,7 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                 if orientation_values:
                     vector = Vector(orientation_values)
                     vector.normalize()
-                    orientation = (-vector.z, vector.x, -vector.y)
+                    orientation = (-vector.x, -vector.y, -vector.z)
 
                 else:
                     orientation = 'RIGHT'

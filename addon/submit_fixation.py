@@ -39,7 +39,7 @@ class VIEW3D_OT_SubmitFixationPointOperator(Operator):
             context.scene["fixations"] = []
         
         json_data = json.loads(context.scene["fixations"]) if context.scene["fixations"] else []
-        
+        obj = context.active_object
         for i, vert in enumerate(selected_verts):
             bpy.ops.object.mode_set(mode='OBJECT')  
             context.active_object.data.vertices.foreach_set("select", [False] * len(context.active_object.data.vertices))  
@@ -51,7 +51,8 @@ class VIEW3D_OT_SubmitFixationPointOperator(Operator):
             vertex_group = context.active_object.vertex_groups[-1]
             vertex_group.name = vertex_group_name
             bpy.ops.object.vertex_group_assign()
-            nodes = [list(vert.co.to_tuple())]  
+            global_co = obj.matrix_world @ vert.co
+            nodes = [list(global_co.to_tuple())]  
         
             new_data = {
                 "name": vertex_group_name,

@@ -114,14 +114,11 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
         
         for fixation in new_fixations_list:
             for node in fixation['nodes']:
-                # Transform the node coordinates to world space
-                node_world = copy_main_object.matrix_world @ Vector(node)
-                nearest_vertex = find_nearest(tree, node_world)
+
+                nearest_vertex = find_nearest(tree, node)
                 if nearest_vertex:
                     # Convert from left-handed to right-handed coordinates
                     nearest_vertex_coordinates = list(nearest_vertex[0])
-                    nearest_vertex_coordinates[1] *= -1
-                    nearest_vertex_coordinates[0] *= -1
                     node[:] = nearest_vertex_coordinates  
                 else:
                     print(f"Skipping node {node} because nearest_vertex is None")
@@ -130,14 +127,10 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
         new_loads_list = json.loads(new_loads)
         for load in new_loads_list:
             for node in load['nodes']:
-                # Transform the node coordinates to world space
-                node_world = copy_main_object.matrix_world @ Vector(node)
-                nearest_vertex = find_nearest(tree, node_world)
+                nearest_vertex = find_nearest(tree, node)
                 if nearest_vertex:
                     # Convert from left-handed to right-handed coordinates
                     nearest_vertex_coordinates = list(nearest_vertex[0])
-                    nearest_vertex_coordinates[1] *= -1
-                    nearest_vertex_coordinates[0] *= -1
                     node[:] = nearest_vertex_coordinates  
                 else:
                     print(f"Skipping node {node} because nearest_vertex is None")
@@ -151,7 +144,7 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
         
         for group in copy_main_object.vertex_groups:
 
-            if "_sample" not in group.name and not group.name.startswith(("contact_point", "constraint_point")):
+            if "_sample" not in group.name and not group.name.startswith(("contact_point", "constraint_point")) and not group.name.endswith("_load "):
                 # Cambiar a modo de edición y seleccionar el grupo de vértices
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.select_all(action='DESELECT')
