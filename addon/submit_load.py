@@ -16,7 +16,8 @@ class View3D_OT_Submit_load(Operator):
     def poll(cls, context):
         return (context.active_object is not None and 
                 context.active_object.type == 'MESH' and 
-                context.scene.load_name.strip() != "")
+                context.scene.load_name.strip() != "" and
+                context.mode == 'EDIT_MESH')
 
     def execute(self, context):
         active_object = context.active_object
@@ -43,7 +44,7 @@ class View3D_OT_Submit_load(Operator):
     
         for load in loads:
             if load['name'] == context.scene.load_name.strip():
-                self.report({'ERROR'}, "Load name already exists. Please assign a different name.")
+                self.report({'ERROR'}, "Load name already exists. Please assign a different name or press <refresh loads list> to update the existing load.")
                 return {'CANCELLED'}
     
         # Crear un nuevo vertex group

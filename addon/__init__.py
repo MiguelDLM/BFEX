@@ -334,6 +334,12 @@ def register():
         description="Loads for the model in a specific format"
     )
 
+    bpy.types.Scene.arrows_size = bpy.props.FloatProperty(
+        name="Arrows Size",
+        default=1,
+        min=0.01,
+        description="Size of the arrows for visualization"
+    )
 
 def unregister():
     classes = [

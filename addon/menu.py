@@ -161,6 +161,7 @@ class VIEW3D_PT_FEITOMenu_PT(bpy.types.Panel):
 
         # Apply button
         row = box.row()
+        row.prop(context.scene, "arrows_size", text="Arrow Size")
         row.operator("view3d.visual_elements", text="Apply")
         
         # Export Files Section

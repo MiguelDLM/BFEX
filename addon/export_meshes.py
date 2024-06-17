@@ -18,16 +18,14 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
     
     @classmethod
     def poll(cls, context):
-        # Verifica si los requisitos están cumplidos
+        # Verify that the selected folder, new folder name, and main object are valid
         main_object_name = context.scene.selected_main_object
         main_object = bpy.data.objects.get(main_object_name)
 
         return (
             context.scene.selected_folder and
             context.scene.new_folder_name and
-            main_object and
-            any(vg.name.startswith("contact_point") for vg in main_object.vertex_groups) and
-            any(vg.name.startswith("constraint_point") for vg in main_object.vertex_groups)
+            main_object
         )
     
     def execute(self, context):
@@ -62,7 +60,7 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
                  
                         file_name_main = f"{main_object.name}.stl"
                         file_path_stl_main = os.path.join(file_path, collection_name, file_name_main)
-                        bpy.ops.export_mesh.stl(filepath=file_path_stl_main, use_selection=True, ascii=False, axis_forward='-Y', axis_up='Z')
+                        bpy.ops.export_mesh.stl(filepath=file_path_stl_main, use_selection=True, ascii=False, axis_forward='Y', axis_up='Z')
 
                         bpy.context.view_layer.objects.active = None
 
@@ -78,7 +76,7 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
 
                             file_name = f"{obj.name}.stl"
                             file_path_stl = os.path.join(file_path, collection_name, file_name)
-                            bpy.ops.export_mesh.stl(filepath=file_path_stl, use_selection=True, ascii=False,axis_forward='-Y', axis_up='Z')
+                            bpy.ops.export_mesh.stl(filepath=file_path_stl, use_selection=True, ascii=False,axis_forward='Y', axis_up='Z')
                             bpy.context.view_layer.objects.active = None
                             
                     # Create python script
