@@ -199,7 +199,7 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
                 mesh_path = os.path.join(folder_path,folder_name, f"{obj_name}.stl")
 
                 # Exporta el objeto seleccionado a un archivo .stl
-                bpy.ops.export_mesh.stl(filepath=mesh_path, use_selection=True,axis_forward='-Y', axis_up='Z')
+                bpy.ops.export_mesh.stl(filepath=mesh_path, use_selection=True,axis_forward='Y', axis_up='Z')
                 
         else:
             print("La colección 'Sensitivity Analysis' no existe")
