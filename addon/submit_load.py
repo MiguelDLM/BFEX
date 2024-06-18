@@ -55,26 +55,25 @@ class View3D_OT_Submit_load(Operator):
         for vertex_index in selected_vertices_indices:
             vertex_group.add([vertex_index], 1.0, 'ADD')
     
-        # Calcular el centroide de los vértices seleccionados
-        sum_coords = mathutils.Vector((0, 0, 0))
-        for vertex_index in selected_vertices_indices:
-            sum_coords += active_object.data.vertices[vertex_index].co
-
         num_vertices = len(selected_vertices_indices)
 
         if context.scene.load_input_method == 'VERTICES':
+
+            # Asumiendo que 'active_object', 'selected_vertices_indices', y 'context' están definidos
             selected_vertex = active_object.data.vertices[selected_vertices_indices[0]]
-            selected_vertex_position = mathutils.Vector((selected_vertex.co.x, selected_vertex.co.y, selected_vertex.co.z))
+            selected_vertex_position = active_object.matrix_world @ selected_vertex.co.copy()  # Convertir a coordenadas globales
             focal_point_list = json.loads(context.scene.loads_focal)
             focal_point_position = mathutils.Vector(focal_point_list)
-            force_vector = focal_point_position - selected_vertex_position
-            force_direction = force_vector.normalized()
-            
+            force_vector = focal_point_position - selected_vertex_position  # Vector desde el vértice al punto focal
+            force_direction = force_vector.normalized()  # Dirección de la fuerza
+
             total_force = context.scene.load_force
-            #convert the axes to the required system (x = -x, y = -z, z = -y)
-            adjusted_load_x = (force_direction.y * total_force) / num_vertices
-            adjusted_load_y = ((force_direction.z * total_force) / num_vertices) * -1
-            adjusted_load_z = ((force_direction.x * total_force) / num_vertices) * -1
+            # No es necesario dividir la fuerza total por el número de vértices si la fuerza se aplica a un solo vértice
+            adjusted_load_x = (force_direction.x * total_force) * -1
+            adjusted_load_y = (force_direction.y * total_force )
+            adjusted_load_z = (force_direction.z * total_force) * -1
+
+
         elif context.scene.load_input_method == 'MANUAL':
             
             adjusted_load_x = context.scene.load_x / num_vertices
