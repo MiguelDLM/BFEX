@@ -123,8 +123,12 @@ class VIEW3D_OT_ExportSensitivityAnalysisOperator(Operator):
                 else:
                     print(f"Skipping node {node} because nearest_vertex is None")
 
-        new_loads = loads
-        new_loads_list = json.loads(new_loads)
+        # Verificar si "loads" existe y no está vacío, de lo contrario usar una lista vacía
+        if loads:
+            new_loads_list = json.loads(loads)
+        else:
+            new_loads_list = []
+
         for load in new_loads_list:
             for node in load['nodes']:
                 nearest_vertex = find_nearest(tree, node)

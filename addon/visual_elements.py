@@ -173,6 +173,9 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
         
         if main_object and context.scene.show_contact_points:
             contact_point_groups = [group for group in main_object.vertex_groups if group.name.endswith("_load")]
+            if not contact_point_groups:
+                return {'FINISHED'} 
+
             loads = json.loads(context.scene["loads"])
             for group in contact_point_groups:
                 vertices_indices = [v.index for v in main_object.data.vertices if group.index in [g.group for g in v.groups]]
@@ -187,11 +190,12 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                     vector = Vector(orientation_values)
                     vector.normalize()
                     orientation = (-vector.x, -vector.y, -vector.z)
-
                 else:
                     orientation = 'RIGHT'
                     self.report({'WARNING'}, f"Orientation values not found for {group_name_without_load}. Using default orientation.")               
                 for coord in vertex_coordinates_global:
                     self.create_combined_object_at_location(coord, visual_elements_collection, f"{group.name}", orientation=orientation, material=red_material)
+
+            return {'FINISHED'}  # Asegura retornar 'FINISHED' al final de la ejecución exitosa
 
         return {'FINISHED'}

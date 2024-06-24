@@ -115,8 +115,6 @@ if __name__ == "__main__":
     import models.bonemodel2 as model
     model.solve(parms())
 
-# Areas of interest
-
 """
 
                     script_file_path = os.path.join(file_path, "script.py")
