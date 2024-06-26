@@ -231,7 +231,7 @@ def main():
                                 fixations_found = True
 
                                 for fixation in fixations['fixations']:
-                                    x, y, z = fixation['nodes']
+                                    x, y, z = fixation['nodes'][0]
                                     matching_rows = combinedData[
                                         (abs(combinedData['X'] - x) < tolerance) &
                                         (abs(combinedData['Y'] - y) < tolerance) &
