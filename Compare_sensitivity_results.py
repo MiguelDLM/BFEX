@@ -57,50 +57,100 @@ def combine_csv_files():
         selected_indices = [int(index) - 1 for index in user_choice.split(',')]
         selected_files = [csv_files[index] for index in selected_indices]
 
-    # Combine the selected files into a DataFrame
     combined_data = pd.DataFrame()
     for file in selected_files:
         folder_name = os.path.basename(os.path.dirname(file))
-        df = pd.read_csv(file, usecols=[0, 1], header=None, skiprows=1)
-        df.columns = ['Value', 'Von Misses Stress']  # Renaming columns for consistency
+        df = pd.read_csv(file, usecols=[0, 1, 6, 7, 8], header=None, skiprows=1)
+        df.columns = ['Value', 'Von Misses Stress', 'Fx', 'Fy', 'Fz']
         df.insert(0, 'Folder Name', folder_name)
+        df = df.sort_values(by=['Folder Name', 'Value'])
         combined_data = pd.concat([combined_data, df])
 
-    # Save the result to a new CSV file
-    combined_data.to_csv('combined_results.csv', index=False)
-    print("Files successfully combined. Results saved in combined_results.csv")
-    
+
+    combined_data = combined_data.sort_values(by=['Folder Name', 'Value'])
+    #remove the subfix of the folder name _faces
+    combined_data['Folder Name'] = combined_data['Folder Name'].str.replace('_faces', '')
+    missing_vms = combined_data['Von Misses Stress'].isnull()
+    if missing_vms.any():
+        print("Some selected subcategories do not have data in 'Von Misses Stress'.")
+
+        column_map = {'1': 'Fx', '2': 'Fy', '3': 'Fz', 'fx': 'Fx', 'fy': 'Fy', 'fz': 'Fz'}
+
+        while True:
+            alternative_column_input = input("Please select an alternative column (1: Fx, 2: Fy, 3: Fz): ").lower()
+
+            alternative_column = column_map.get(alternative_column_input)
+            if alternative_column:
+
+                break
+            else:
+                print("Invalid selection. Please choose between 1: Fx, 2: Fy, 3: Fz.")
+
+
+        df_alternative = combined_data.loc[missing_vms, ['Folder Name', 'Value', alternative_column]].copy()
+
+
     grouped_data = combined_data.groupby(["Folder Name", "Value"])["Von Misses Stress"].mean()
     subcategories = grouped_data.index.get_level_values("Value").unique()
 
-    # Interacción para elegir subcategorías
-    print("Subcategorías disponibles:")
+
+    print("Available subcategories:")
     for i, subcat in enumerate(subcategories):
         print(f"{i + 1}. {subcat}")
 
-    choices = input("Select subcategories separated by commas (e.g., 1,2,3) or enter 'all' to view all subcategories: ")
+    choices = input("Select subcategories by number, use '-' to exclude (e.g., 1,2,-3) or 'all except' followed by numbers to exclude (e.g., all except 3,4): ")
 
-    # Filtrar datos según la elección del usuario
-    if choices.lower() == "all":
-        selected_data = grouped_data
+    if choices.lower().startswith("all except"):
+        exclude_indices = [int(idx) - 1 for idx in choices.replace("all except", "").split(",")]
+        selected_subcats = [subcat for i, subcat in enumerate(subcategories) if i not in exclude_indices]
+    elif choices.lower() == "all":
+        selected_subcats = subcategories
     else:
-        selected_indices = [int(idx) - 1 for idx in choices.split(",")]
-        selected_subcats = subcategories[selected_indices]
-        selected_data = grouped_data[grouped_data.index.get_level_values("Value").isin(selected_subcats)]
+        selected_indices = []
+        exclude_indices = []
+        for choice in choices.split(","):
+            if choice.startswith("-"):
+                exclude_indices.append(int(choice[1:]) - 1)
+            else:
+                selected_indices.append(int(choice) - 1)
+        
+        if exclude_indices:
+            selected_subcats = [subcat for i, subcat in enumerate(subcategories) if i not in exclude_indices]
+        else:
+            selected_subcats = [subcategories[i] for i in selected_indices]
 
+    selected_data = grouped_data[grouped_data.index.get_level_values("Value").isin(selected_subcats)]
+    selected_data = selected_data.dropna()
 
-    # Creación del gráfico
     plt.figure(figsize=(10, 6))
-    line_styles = ["-", "--", "-.", ":"]
+    ax1 = plt.gca()
+
     markers = ["o", "s", "^", "D", "v", "P", "*", "X", "h"]
     for i, (subcat, values) in enumerate(selected_data.groupby("Value")):
-        plt.plot(values.index.get_level_values("Folder Name"), values, marker=markers[i % len(markers)], label=subcat, linestyle=line_styles[i % len(line_styles)], lw =2)
+        ax1.plot(values.index.get_level_values("Folder Name"), values, marker=markers[i % len(markers)], label=subcat, linestyle="-", lw=2)  
 
-    plt.xlabel("Number of faces")
-    plt.ylabel("Von Misses Stress")
-    plt.title("Von Misses Stress Variation")
-    plt.legend()
-    plt.grid(True)
+    ax1.set_xlabel("Number of faces")
+    ax1.set_ylabel("Von Misses Stress")
+    ax1.set_title("Forces and Stress variation across different number of faces")
+    ax1.grid(False)
+
+    ax2 = ax1.twinx()
+
+    for i, (subcat, values) in enumerate(df_alternative.groupby("Value")):
+        ax2.plot(values['Folder Name'], values[alternative_column], marker=markers[i % len(markers)], label=subcat, linestyle="--", lw=2, alpha=0.5) 
+
+    ax2.set_ylabel(alternative_column)
+
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles2, labels2 = ax2.get_legend_handles_labels()
+
+    combined_handles = handles1 + handles2
+    combined_labels = labels1 + labels2
+
+    ax1.legend(combined_handles, combined_labels, loc='upper left', bbox_to_anchor=(1.05, 1))
+
+    plt.tight_layout()
+
     plt.show()
 
 if __name__ == "__main__":
