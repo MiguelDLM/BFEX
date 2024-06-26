@@ -59,9 +59,10 @@ def find_msh_files(folder, python_file):
     folder_path = os.path.join(os.path.dirname(python_file), folder_name)
     mesh_file = os.path.join(folder_path, 'mesh.msh')
     stress_tensor_file = os.path.join(folder_path, 'smooth_stress_tensor.msh')
+    force_vector_file = os.path.join(folder_path, 'force_vector.msh')
 
-    if os.path.exists(mesh_file) and os.path.exists(stress_tensor_file):
-        return mesh_file, stress_tensor_file
+    if os.path.exists(mesh_file) and os.path.exists(stress_tensor_file) and os.path.exists(force_vector_file):
+        return mesh_file, stress_tensor_file, force_vector_file
     else:
         print(f"Error: MSH files not found in the {folder_name} folder. Exiting.")
         exit()
@@ -86,14 +87,17 @@ def main():
             gmsh.initialize()
 
             folder_path = os.path.join(script_directory, os.path.splitext(os.path.basename(selected_file))[0])
-            mesh_file, stress_tensor_file = find_msh_files(folder_path, selected_file)
+            mesh_file, stress_tensor_file, force_vector_file = find_msh_files(folder_path, selected_file)
 
             print(f"\nUsing the MSH files in the {os.path.basename(folder_path)} folder:")
             print(f" - mesh.msh: {mesh_file}")
             print(f" - smooth_stress_tensor.msh: {stress_tensor_file}")
+            print(f" - force_vector.msh: {force_vector_file}")
+
 
             gmsh.merge(mesh_file)
             gmsh.merge(stress_tensor_file)
+            gmsh.merge(force_vector_file)
 
             nodeTags, nodeCoords, _ = gmsh.model.mesh.getNodes()
 
@@ -117,105 +121,30 @@ def main():
             svmData.reset_index(drop=True, inplace=True)
             combinedData = pd.concat([nodeData, svmData], axis=1)
 
+            dataType_force, tags_force, data_force, time_force, numComp_force = gmsh.view.getModelData(2, 0)
+
+            forces = []
+            for force in data_force:
+                [fx, fy, fz] = force
+                forces.append([fx, fy, fz])
+
+            forces = np.array(forces)
+
+            combinedData = pd.concat([combinedData, pd.DataFrame(forces, columns=['Fx', 'Fy', 'Fz'])], axis=1)
+
             combinedData.to_csv(os.path.join(folder_path, 'smooth_stress_tensor.csv'), index=False)
 
             gmsh.finalize()
 
-            with open(selected_file, 'r') as f:
-               for line in f:
-                   if 'p[' in line and 'contact_pts' in line:
-                       contact_points_str = line.split('=')[1]
-                       contact_points = eval(contact_points_str)
-
             tolerance = 1e-4
 
-            contact_points = []
-            axis_points = []
-
-            with open(selected_file, 'r') as f:
-                for line in f:
-                    if 'p[' in line and 'contact_pts' in line:
-                        contact_points_str = line.split('=')[1]
-                        contact_points = eval(contact_points_str)
-                    elif 'p[' in line and 'axis_pt' in line:
-                        axis_point_str = line.split('=')[1]
-                        axis_point = eval(axis_point_str)
-                        axis_points.append(axis_point)
-
-            for point in contact_points:
-                x, y, z = point
-                matching_rows = combinedData[
-                    (abs(combinedData['X'] - x) < tolerance) &
-                    (abs(combinedData['Y'] - y) < tolerance) &
-                    (abs(combinedData['Z'] - z) < tolerance)
-                ]
-
-                if not matching_rows.empty:
-                    von_misses_stress = matching_rows['Von Misses Stress'].values[0]
-                else:
-                    print(f"Contact Point Coordinates: ({x}, {y}, {z}), Von Misses Stress: No close matches found")
-
-            for point in axis_points:
-                x, y, z = point
-                matching_rows = combinedData[
-                    (abs(combinedData['X'] - x) < tolerance) &
-                    (abs(combinedData['Y'] - y) < tolerance) &
-                    (abs(combinedData['Z'] - z) < tolerance)
-                ]
-
-                if not matching_rows.empty:
-                    von_misses_stress = matching_rows['Von Misses Stress'].values[0]
-                else:
-                    print(f"Axis Point Coordinates: ({x}, {y}, {z}), Von Misses Stress: No close matches found")
-
+            results_list = []
+                            
             max_von_misses_stress = combinedData['Von Misses Stress'].max()
             max_von_misses_stress_row = combinedData.loc[combinedData['Von Misses Stress'].idxmax()]
             max_von_misses_stress_coords = max_von_misses_stress_row[['X', 'Y', 'Z']].values
             min_von_misses_stress = combinedData['Von Misses Stress'].min()
             average_von_misses_stress = combinedData['Von Misses Stress'].mean()
-
-            results_list = []
-            
-            for i, point in enumerate(contact_points, start=1):
-                x, y, z = point
-                matching_rows = combinedData[
-                    (abs(combinedData['X'] - x) < tolerance) &
-                    (abs(combinedData['Y'] - y) < tolerance) &
-                    (abs(combinedData['Z'] - z) < tolerance)
-                ]
-
-                if not matching_rows.empty:
-                    von_misses_stress = matching_rows['Von Misses Stress'].values[0]
-                    results_list.append({
-                        'Value': f'Contact Point {i}',
-                        'Von Misses Stress': von_misses_stress,
-                        'Coordinate X': x,
-                        'Coordinate Y': y,
-                        'Coordinate Z': z
-                    })
-                else:
-                    print(f"Contact Point {i} Coordinates: ({x}, {y}, {z}), Von Misses Stress: No close matches found")
-
-            for i, point in enumerate(axis_points, start=1):
-                x, y, z = point
-                matching_rows = combinedData[
-                    (abs(combinedData['X'] - x) < tolerance) &
-                    (abs(combinedData['Y'] - y) < tolerance) &
-                    (abs(combinedData['Z'] - z) < tolerance)
-                ]
-
-                if not matching_rows.empty:
-                    von_misses_stress = matching_rows['Von Misses Stress'].values[0]
-                    results_list.append({
-                        'Value': f'Axis Point {i}',
-                        'Von Misses Stress': von_misses_stress,
-                        'Coordinate X': x,
-                        'Coordinate Y': y,
-                        'Coordinate Z': z
-                    })
-                else:
-                    print(f"Axis Point {i} Coordinates: ({x}, {y}, {z}), Von Misses Stress: No close matches found")
-
             results_list.append({
                 'Value': 'Maximum',
                 'Von Misses Stress': max_von_misses_stress,
@@ -225,6 +154,7 @@ def main():
             })
             results_list.append({'Value': 'Minimum', 'Von Misses Stress': min_von_misses_stress})
             results_list.append({'Value': 'Average', 'Von Misses Stress': average_von_misses_stress})
+
             #extract the average von misses stress of all the nodes except the 2% of the nodes with the highest von misses stress
             combinedData2 = combinedData.sort_values(by='Von Misses Stress', ascending=False)
             num_nodes = len(combinedData2)
@@ -233,13 +163,10 @@ def main():
             average_von_misses_stress2 = combinedData2['Von Misses Stress'].mean()
             results_list.append({'Value': 'Average (excluding 2% highest)', 'Von Misses Stress': average_von_misses_stress2})
 
-
-            
             #Aditional areas
             
-            additional_coordinates = []
             found_areas_of_interest = False
-            area_von_misses_stress = {}  # Diccionario para almacenar los promedios de Von Misses Stress por área
+            area_von_misses_stress = {}  
 
             with open(selected_file, 'r') as f:
                 for line in f:
@@ -280,9 +207,71 @@ def main():
                     'Coordinate Z': None,
                     'Number of nodes': num_elements
                 })
+            #Extract the reaction forces at the fixations 
 
+            fixations_found = False
+            accumulating = False
+            json_string = ""
+            with open(selected_file, 'r') as f:
+                accumulating = False
+                json_string = ''
+                previous_line = ''
+                for line in f:
+                    if 'p[' in line and 'fixations' in line:
+                        accumulating = True
+                        json_string = '{"fixations":' + line.split('fixations')[1].split('] = ')[1].strip()
+                    elif accumulating:
+                        if line.strip().startswith('p') and previous_line.strip().endswith(']'):
+                            json_string += previous_line.strip() + "}"
+                            json_string = json_string[:-3] + "]}"
+                            accumulating = False
+                            try:
+
+                                fixations = json.loads(json_string.replace("'", '"'))
+                                fixations_found = True
+
+                                for fixation in fixations['fixations']:
+                                    x, y, z = fixation['nodes']
+                                    matching_rows = combinedData[
+                                        (abs(combinedData['X'] - x) < tolerance) &
+                                        (abs(combinedData['Y'] - y) < tolerance) &
+                                        (abs(combinedData['Z'] - z) < tolerance)
+                                    ]
+                                    if not matching_rows.empty:
+                                        row = matching_rows.iloc[0]
+                                        fx, fy, fz = row[['Fx', 'Fy', 'Fz']].values
+                                        fixation['forces'] = [fx, fy, fz]
+                                        results_list.append({
+                                            'Value': fixation['name'],
+                                            'Von Misses Stress': None,
+                                            'Coordinate X': x,
+                                            'Coordinate Y': y,
+                                            'Coordinate Z': z,
+                                            'Fx': fx,
+                                            'Fy': fy,
+                                            'Fz': fz
+                                        })
+                                    else:
+                                        print(f"Node ({x}, {y}, {z}) not found in combinedData.")
+
+                            except json.JSONDecodeError as e:
+                                print("Error decoding JSON from accumulated string:", json_string)
+                                print("JSONDecodeError:", e)
+
+                            json_string = ""
+                        else:
+
+                            json_string += line.strip()
+                            previous_line = line
+
+            if not fixations_found:
+                print("No fixations found")
             results_df = pd.DataFrame(results_list)
-            pd.set_option('display.max_columns', None)
+
+            pd.set_option('display.max_rows', None) 
+            pd.set_option('display.max_columns', None)  
+            pd.set_option('display.width', None)  
+            pd.set_option('display.max_colwidth', None)  
 
             print("Results:")
             print(results_df)
