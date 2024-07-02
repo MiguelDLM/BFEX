@@ -161,7 +161,7 @@ def main():
             # Guardar el archivo VTK
             vtk_file_path = os.path.join(folder_path, 'combined_data.vtk')
             mesh.save(vtk_file_path)
-            print(f"Datos exportados como archivo VTK en {vtk_file_path}")
+            #print(f"Datos exportados como archivo VTK en {vtk_file_path}")
             gmsh.finalize()
 
             tolerance = 1e-4
