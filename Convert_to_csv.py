@@ -4,6 +4,8 @@ try:
     import pandas as pd
     import gmsh
     import json
+    import pyvista as pv
+    from pyvista import _vtk as vtk
 except ImportError as e:
     print(f"Error: {e}")
     install_libraries = input("Some of the required libraries are not installed. Do you want to install them now? (y/n): ").lower()
@@ -134,6 +136,32 @@ def main():
 
             combinedData.to_csv(os.path.join(folder_path, 'smooth_stress_tensor.csv'), index=False)
 
+            #Export the combined data as a VTK file
+            points = nodeCoords.reshape(-1, 3)
+            # Obtener elementos de la malla de GMSH
+            elementTypes, elementTags, nodeTagsPerElement = gmsh.model.mesh.getElements()
+
+            # Preparar los datos de cells para PyVista
+            cells = []
+            for elementType, nodeTags in zip(elementTypes, nodeTagsPerElement):
+                # Obtener el número de nodos por tipo de elemento (p. ej., 3 para triángulos, 4 para tetraedros)
+                numNodesPerElement = gmsh.model.mesh.getElementProperties(elementType)[3]
+                for element in nodeTags.reshape(-1, numNodesPerElement):
+                    # Añadir el número de nodos seguido por los índices de los nodos (ajustados por -1 para base 0)
+                    cells.append(np.insert(element - 1, 0, numNodesPerElement))
+
+            # Convertir a un array de NumPy para compatibilidad con PyVista
+            cellsArray = np.concatenate(cells).astype(np.int_)
+
+            # Crear el objeto PolyData para PyVista
+            mesh = pv.PolyData(points, cellsArray)
+            mesh.point_data['Von Misses Stress'] = svms
+            mesh.point_data['Forces'] = forces
+
+            # Guardar el archivo VTK
+            vtk_file_path = os.path.join(folder_path, 'combined_data.vtk')
+            mesh.save(vtk_file_path)
+            print(f"Datos exportados como archivo VTK en {vtk_file_path}")
             gmsh.finalize()
 
             tolerance = 1e-4
