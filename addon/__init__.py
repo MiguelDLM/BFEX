@@ -1,16 +1,3 @@
-bl_info = {
-    "name": "FEITO",
-    "blender": (2, 80, 0),
-    "category": "Mesh",
-    "author": "E. Miguel Diaz de Leon-Munoz",
-    "description": "An Add-on for generating files for Fossil software (Finite Elements Analysis) files in Blender.",
-    "version": (1, 0, 0),
-    "location": "View3D > Tools",
-    "warning": " Before using this add-on, ensure that your meshes are free from errors such as Non-Manifold edges, intersecting faces, etc. We recommend using the 3D-Print add-on for optimal results.",
-    "tracker_url": "https://github.com/MiguelDLM",
-    "support": "COMMUNITY",
-}
-
 import bpy
 from bpy.types import Operator, PropertyGroup, UIList
 from bpy.props import StringProperty, EnumProperty, FloatProperty, CollectionProperty, IntProperty

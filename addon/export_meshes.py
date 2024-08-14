@@ -60,7 +60,7 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
                  
                         file_name_main = f"{main_object.name}.stl"
                         file_path_stl_main = os.path.join(file_path, collection_name, file_name_main)
-                        bpy.ops.export_mesh.stl(filepath=file_path_stl_main, use_selection=True, ascii=False, axis_forward='Y', axis_up='Z')
+                        bpy.ops.wm.stl_export(filepath=file_path_stl_main, export_selected_objects=True, ascii_format=False, forward_axis='Y', up_axis='Z')
 
                         bpy.context.view_layer.objects.active = None
 
@@ -76,7 +76,7 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
 
                             file_name = f"{obj.name}.stl"
                             file_path_stl = os.path.join(file_path, collection_name, file_name)
-                            bpy.ops.export_mesh.stl(filepath=file_path_stl, use_selection=True, ascii=False,axis_forward='Y', axis_up='Z')
+                            bpy.ops.wm.stl_export(filepath=file_path_stl, export_selected_objects=True, ascii_format=False, forward_axis='Y', up_axis='Z')
                             bpy.context.view_layer.objects.active = None
                             
                     # Create python script
