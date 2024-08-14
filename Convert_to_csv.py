@@ -21,6 +21,7 @@ except ImportError as e:
             import pandas as pd
             import gmsh
             import json
+            import pyvista as pv
         except Exception as install_error:
             print(f"Failed to install libraries. Error: {install_error}")
             input("Press Enter to close the script.")
