@@ -40,9 +40,17 @@ def read_vtk_to_dataframe(vtk_file):
     
     data = reader.GetOutput()
     point_data = data.GetPointData()
+    points = data.GetPoints()
     array_names = [point_data.GetArrayName(i) for i in range(point_data.GetNumberOfArrays())]
     
     data_dict = {}
+    
+    # Extract point coordinates
+    vtk_points = vtk_to_numpy(points.GetData())
+    data_dict['x'] = vtk_points[:, 0]
+    data_dict['y'] = vtk_points[:, 1]
+    data_dict['z'] = vtk_points[:, 2]
+    
     for name in array_names:
         vtk_array = point_data.GetArray(name)
         np_array = vtk_to_numpy(vtk_array)
@@ -70,8 +78,13 @@ def save_scaled_vtk(df, data, vtk_file, variable_name):
     new_file_name = vtk_file.replace('.vtk', '.vtk')
     writer.SetFileName(new_file_name)
     writer.SetInputData(data)
+    writer.SetFileTypeToASCII()  # Set the file type to ASCII
     writer.Write()
     print(f"Scaled file saved as {new_file_name}")
+
+def ask_export_csv():
+    export_option = input("Do you want to export the results as a CSV file? (yes/no): ")
+    return export_option.lower() == 'yes'
 
 def main():
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -91,10 +104,17 @@ def main():
     selected_variable = get_variable_choice(array_names)
     scale_factor = float(input(f"Enter the scale factor for {selected_variable}: "))
     
+    export_csv = ask_export_csv()
+    
     for file in selected_files:
         df, data, _ = read_vtk_to_dataframe(file)
         df[selected_variable] *= scale_factor
         save_scaled_vtk(df, data, file, selected_variable)
+        
+        if export_csv:
+            csv_file_name = file.replace('.vtk', '.csv')
+            df.to_csv(csv_file_name, index=False)
+            print(f"CSV file saved as {csv_file_name}")
 
 if __name__ == "__main__":
     main()
