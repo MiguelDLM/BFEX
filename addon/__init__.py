@@ -31,6 +31,8 @@ from .refresh_fixations import View3D_OT_Refresh_FixationsOperator
 from .submit_load import View3D_OT_Submit_load
 from .refresh_loads import VIEW3D_OT_RefreshLoadsOperator   
 from .submit_focal_load import View3D_OT_SubmitFocalLoad
+from .FEITO_remesh import VIEW3D_OT_FEITO_remesh
+
 
 
 
@@ -64,6 +66,7 @@ def register():
     bpy.utils.register_class(View3D_OT_Submit_load)
     bpy.utils.register_class(View3D_OT_SubmitFocalLoad)
     bpy.utils.register_class(VIEW3D_OT_RefreshLoadsOperator)
+    bpy.utils.register_class(VIEW3D_OT_FEITO_remesh)
     
     
 
@@ -328,6 +331,31 @@ def register():
         description="Size of the arrows for visualization"
     )
 
+
+    bpy.types.Scene.show_sensitivity_section = bpy.props.BoolProperty(
+        name="Show Sensitivity Analysis Section",
+        description="Show or hide the Sensitivity Analysis section",
+        default=False
+    )
+
+    bpy.types.Scene.remesh_mode = bpy.props.EnumProperty(
+        name="Remesh Mode",
+        description="Select the remesh mode",
+        items=[
+            ('VOXEL', "Voxel", "Voxel remesh"),
+            ('QUAD', "Quad", "Quad remesh"),
+            ('INSTANT', "Instant Remesh", "Instant remesh"),
+            ('MODIFIER', "Remesh Modifier", "Remesh modifier"),
+            ('DECIMATE', "Decimate", "Decimate modifier"),
+        ]
+    )
+    
+    bpy.types.Scene.quad_target_faces = bpy.props.IntProperty(name="Target Faces", default=4000, min=100, max=100000)
+    bpy.types.Scene.instant_vertex_count = bpy.props.IntProperty(name="Vertex Count", default=2000, min=10, max=50000)
+    bpy.types.Scene.instant_smooth = bpy.props.IntProperty(name="Smooth", default=2, min=0, max=10)
+    bpy.types.Scene.modifier_octree_depth = bpy.props.IntProperty(name="Octree Depth", default=4, min=1, max=10)
+    bpy.types.Scene.modifier_scale = bpy.props.FloatProperty(name="Scale", default=0.9, min=0.1, max=1.0)
+
 def unregister():
     classes = [
         VIEW3D_PT_FEITOMenu_PT,
@@ -352,6 +380,7 @@ def unregister():
         View3D_OT_Submit_load,
         View3D_OT_SubmitFocalLoad,
         VIEW3D_OT_RefreshLoadsOperator,
+        VIEW3D_OT_FEITO_remesh
     ]
     
     for cls in classes:

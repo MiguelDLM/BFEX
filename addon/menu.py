@@ -14,6 +14,8 @@ class VIEW3D_PT_FEITOMenu_PT(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        obj = context.object 
+        scene = context.scene
 
         # Data Storage Location
         box = layout.box()
@@ -180,19 +182,62 @@ class VIEW3D_PT_FEITOMenu_PT(bpy.types.Panel):
         col2.operator("view3d.open_fea_results_folder", text="Open FEA Results Folder", icon='FILE_FOLDER')
 
 
-        # Export for Sensitivity Analysis Section
+        # Sensitivity Analysis Section
         box = layout.box()
-        box.label(text="Export for Sensitivity Analysis")
         row = box.row()
-        row.prop(context.scene, "sample_name", text="Sample name", icon='GREASEPENCIL')
-        split = box.split(factor=0.5)
-        col1 = split.column(align=True)
-        col2 = split.column(align=True)
+        icon = 'TRIA_DOWN' if context.scene.show_sensitivity_section else 'TRIA_RIGHT'
+        row.prop(context.scene, "show_sensitivity_section", text="Sensitivity Analysis", icon=icon, emboss=False)
+        if context.scene.show_sensitivity_section:
+            box = box.box()
+            box.label(text="Remeshing", icon='MOD_REMESH')
+            row = box.row()
+            row.prop(context.scene, "remesh_mode", text="Remesh Mode")
 
-        col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
-        col2.operator("view3d.submit_sample", text="Submit Sample", icon='EXPORT')
-        row = box.row()
-        row.prop(context.scene, "scale_factor", text="Scale Factor")
-        row.prop(context.scene, "total_faces", text="Number of faces")
-        row = box.row()
-        row.operator("view3d.export_sensitivity_analysis", text="Export for Sensitivity Analysis")
+            if context.scene.remesh_mode == 'VOXEL':
+                box.label(text="Voxel Remesh Parameters")
+                row = box.row()
+                row.prop(obj.data, "remesh_voxel_size", text="Voxel Size")
+                row.prop(obj.data, "remesh_voxel_adaptivity", text="Adaptivity")
+                row.operator("view3d.feito_remesh", text="Apply Voxel Remesh")
+
+            elif context.scene.remesh_mode == 'QUAD':
+                box.label(text="Quad Remesh Parameters")
+                row = box.row()
+                row.prop(scene, "quad_target_faces", text="Target Faces")
+                row.operator("view3d.feito_remesh", text="Apply Quad Remesh")
+
+            elif context.scene.remesh_mode == 'INSTANT':
+                box.label(text="Instant Remesh Parameters")
+                row = box.row()
+                row.prop(context.scene, "instant_vertex_count", text="Vertex Count")
+                row.prop(context.scene, "instant_smooth", text="Smooth")
+                row.operator("view3d.feito_remesh", text="Apply Instant Remesh")
+
+            elif context.scene.remesh_mode == 'MODIFIER':
+                box.label(text="Remesh Modifier Parameters")
+                row = box.row()
+                row.prop(context.scene, "modifier_octree_depth", text="Octree Depth")
+                row.prop(context.scene, "modifier_scale", text="Scale")
+                row.operator("view3d.feito_remesh", text="Apply Remesh Modifier")
+
+            elif context.scene.remesh_mode == 'DECIMATE':
+                row = box.row()
+                row.prop(context.scene, "scale_factor", text="Scale Factor")
+                row.prop(context.scene, "total_faces", text="Number of faces")
+                row.operator("view3d.feito_remesh", text="Apply Decimate Modifier")
+
+
+
+            box.label(text="Samples", icon='EYEDROPPER')
+            row = box.row()
+            row.prop(context.scene, "sample_name", text="Sample name", icon='GREASEPENCIL')
+            split = box.split(factor=0.5)
+            col1 = split.column(align=True)
+            col2 = split.column(align=True)
+
+            col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
+            col2.operator("view3d.submit_sample", text="Submit Sample", icon='EXPORT')
+
+            box.label(text="Export", icon='EXPORT')
+            row = box.row()
+            row.operator("view3d.export_sensitivity_analysis", text="Export for Sensitivity Analysis")
