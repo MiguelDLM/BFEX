@@ -1,0 +1,29 @@
+name: msh2vtk
+description: Converter for MSH to VTK and CSV file format
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.17.0 <3.0.0"
+
+dependencies:
+
+  flutter:
+
+    sdk: flutter
+
+  file_picker: ^4.2.7
+
+  process_run: ^0.12.0
+
+  logging: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
