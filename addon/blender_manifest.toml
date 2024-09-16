@@ -1,0 +1,24 @@
+schema_version = "1.0.0"
+id = "FEITO"
+version = "1.0.0"
+name = "FEITO"
+tagline = "An Add-on for generating files for Fossil software (Finite Elements Analysis) files in Blender"
+maintainer = "Miguel Díaz de León <migueldlm1307@gmai.com>"
+type = "add-on"
+website = "https://github.com/MiguelDLM/FEITO/"
+tags = ["Import-Export", "User Interface"]
+blender_version_min = "4.2.0"
+license = [
+  "SPDX:GPL-2.0-or-later",
+]
+copyright = [
+  "2024 Miguel Díaz de León" 
+]
+[permissions]
+files = "Import/export FBX from/to disk"
+[build]
+paths_exclude_pattern = [
+   "__pycache__/",
+   "/.git/",
+   "/*.zip",
+]
