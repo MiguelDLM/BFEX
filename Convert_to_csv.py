@@ -21,6 +21,7 @@ except ImportError as e:
             import pandas as pd
             import gmsh
             import json
+            import pyvista as pv
         except Exception as install_error:
             print(f"Failed to install libraries. Error: {install_error}")
             input("Press Enter to close the script.")
@@ -196,7 +197,7 @@ def main():
             found_areas_of_interest = False
             area_von_misses_stress = {}  
 
-            with open(selected_file, 'r') as f:
+            with open(selected_file, 'r', encoding='utf-8') as f:
                 for line in f:
                     if found_areas_of_interest and line.startswith("#"):
                         try:
@@ -240,7 +241,7 @@ def main():
             fixations_found = False
             accumulating = False
             json_string = ""
-            with open(selected_file, 'r') as f:
+            with open(selected_file, 'r', encoding='utf-8') as f:
                 accumulating = False
                 json_string = ''
                 previous_line = ''
