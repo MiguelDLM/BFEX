@@ -6,6 +6,7 @@ import json
 import pyvista as pv
 from pyvista import _vtk as vtk
 import argparse
+import sys
 
 def find_msh_files(python_file):
     folder_path = os.path.splitext(python_file)[0]
@@ -17,7 +18,8 @@ def find_msh_files(python_file):
         return mesh_file, stress_tensor_file, force_vector_file
     else:
         print(f"Error: MSH files not found in the {folder_path} folder. Exiting.")
-        exit()
+        sys.exit()
+        
 
 def process_file(selected_file, export_von_misses, export_smooth_stress, export_vtk):
     gmsh.initialize()
