@@ -1,7 +1,7 @@
 # BFEX - Blender FEA Exporter
 
 BFEX is an add-on designed to facilitate the creation of files required for Finite Element Analysis (FEA) within Blender. The add-on offers a range of functionalities to streamline the process, allowing users to:
-![Addon Menu](https://github.com/MiguelDLM/BFEXraw/main/Addon%20menu.png)
+![Addon Menu](https://github.com/MiguelDLM/BFEX/main/Addon%20menu.png)
 ## Features
 
 1. **Create Muscle Attachment Surfaces:**
@@ -35,11 +35,7 @@ To install the add-on, follow these steps:
 Ensure your mesh is free of errors by utilizing the 3D print add-on and clicking "Check All." Verify that your mesh does not contain errors such as Non-Manifold Edges, Bad Contiguous Edges, Intersect Faces, Zero Faces, Zero Edges, Non-Flat Faces, Thin Faces, or Sharp Edges. All error counts should be zero; otherwise, Fossils may crash. Overhang Faces are allowed in Fossils.
 
 ![Mesh with good quality example](https://github.com/MiguelDLM/BFEX/blob/main/Quality%20of%20the%20mesh%20example.png)
-### Verify Correct Orientation
 
-Blender employs a Z-Up world interface, where the Z-axis points upward. Some software, like MeshLab, uses a Y-Up world interface. Fossils assumes a Y-Up system, so ensure your model is correctly oriented before starting. The add-on provides a "Rotate Y to Z" button to adjust the orientation if needed.
-Proper orientation before start:
-![Correct Orientation](https://github.com/MiguelDLM/BFEX/blob/main/correct%20orientation.png)
 ## Usage
 
 1. **Folder Setup:**
@@ -128,8 +124,8 @@ Additionally, you can run Fossils in batch mode to avoid the GMSH interface. To 
 Now you can download the binaries to run Fossils in batch mode and convert the results to VTK and CSV files. The binaries consist of two executables, keep them in the same folder since they are dependent on each other. You can input the path of the Fossils installation and select the folder where your python script(s) are located. Once loaded the folder, you can select the python script to run o convert. If you want to convert the results, be sure the results are in a folder with the same name as the python script and next to it. The folders need to have the following structure:
 ```
 Folder
-│   python_script.py
-│   Folder
+│   script.py
+│   script
 │   │   Smooth_stress_tensor.msh
 │   │   mesh.msh
 │   │   ...
