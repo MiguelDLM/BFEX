@@ -1,0 +1,24 @@
+schema_version = "1.0.0"
+id = "BFEX"
+version = "1.0.0"
+name = "Blender Finite Element eXporter"
+tagline = "An Add-on for Blender that export files for Finite Element Analysis in Fossils"
+maintainer = "Miguel Díaz de León <migueldlm1307@gmai.com>"
+type = "add-on"
+website = "https://github.com/MiguelDLM/BFEX/"
+tags = ["Import-Export", "User Interface"]
+blender_version_min = "4.2.0"
+license = [
+  "SPDX:GPL-2.0-or-later",
+]
+copyright = [
+  "2024 Miguel Díaz de León" 
+]
+platforms = ["windows-x64", "macos-arm64", "linux-x64"]
+[permissions]
+[build]
+paths_exclude_pattern = [
+   "__pycache__/",
+   "/.git/",
+   "/*.zip",
+]

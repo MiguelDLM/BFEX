@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "FEITO",
+    "name": "BFEX",
     "blender": (2, 80, 0),
     "category": "Mesh",
     "author": "E. Miguel Diaz de Leon-Munoz",
@@ -12,8 +12,9 @@ bl_info = {
 }
 
 import bpy
-from bpy.types import Operator, PropertyGroup, UIList
+from bpy.types import Operator, PropertyGroup, UIList, AddonPreferences
 from bpy.props import StringProperty, EnumProperty, FloatProperty, CollectionProperty, IntProperty
+
 import os
 import math
 import json
@@ -23,7 +24,7 @@ import mathutils
 import random
 from mathutils import Vector, kdtree
 
-from .menu import VIEW3D_PT_FEITOMenu_PT
+from .menu import VIEW3D_PT_BFEXMenu_PT
 from .browse_folder import VIEW3D_OT_BrowseFolderOperator
 from .create_folder_and_collection import VIEW3D_OT_CreateFolderOperator
 from .submit_main_object import VIEW3D_OT_SubmitMainObjectOperator
@@ -45,17 +46,43 @@ from .submit_load import View3D_OT_Submit_load
 from .refresh_loads import VIEW3D_OT_RefreshLoadsOperator   
 from .submit_focal_load import View3D_OT_SubmitFocalLoad
 
+class BFEXPreferences(AddonPreferences):
+    bl_idname = __name__
+    
 
+    fossils_path: bpy.props.StringProperty(
+        name="Fossils file path",
+        subtype='FILE_PATH'
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "fossils_path")
+
+class OBJECT_OT_BFEX_preferences(bpy.types.Operator):
+    bl_idname = "object.bfex_preferences"
+    bl_label = "BFEX Preferences"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        preferences = context.preferences.addons[__name__].preferences
+        BFEX = preferences.fossils_path
+
+        return {'FINISHED'}
 
 # Utilities 
 def set_object_mode(obj, mode):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode=mode)
+
+def get_addon_name():
+    return __name__.split('.')[0]
     
 
 
 def register():
-    bpy.utils.register_class(VIEW3D_PT_FEITOMenu_PT)
+    bpy.utils.register_class(BFEXPreferences)
+    bpy.utils.register_class(VIEW3D_PT_BFEXMenu_PT)
     bpy.utils.register_class(VIEW3D_OT_BrowseFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_CreateFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitMainObjectOperator)
@@ -343,7 +370,8 @@ def register():
 
 def unregister():
     classes = [
-        VIEW3D_PT_FEITOMenu_PT,
+        BFEXPreferences,
+        VIEW3D_PT_BFEXMenu_PT,
         VIEW3D_OT_StartSelectionOperator, 
         VIEW3D_OT_SubmitSelectionOperator,
         VIEW3D_OT_BrowseFolderOperator,

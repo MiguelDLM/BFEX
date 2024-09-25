@@ -4,44 +4,54 @@
 import bpy
 import os
 import subprocess
+import platform
 import ctypes
 from bpy.types import Operator
+
+
 
 
 class VIEW3D_OT_RunFossilsOperator(Operator):
     bl_idname = "view3d.run_fossils"
     bl_label = "Run Fossils"
     bl_options = {'REGISTER', 'UNDO'}
-    bl_description = "Run Fossils with the script.py file stored in the selected folder in Browse folder option. If fossils open and crash, check the correct location and names of the files. script.py is te default name"
-
+    bl_description = "Run Fossils with the script.py file stored in the selected folder in Browse folder option. Define the path to Fossils in the preferences"
+    @classmethod
+    def poll(cls, context):
+        from . import __name__ as __main__
+        prefs = bpy.context.preferences.addons[__main__].preferences
+        fossils_path = prefs.fossils_path
+        return bool(fossils_path) 
+    
     def execute(self, context):
-
         python_file_path = bpy.path.abspath(context.scene.selected_folder)
         python_file_path = os.path.join(python_file_path, "script.py")
-        user_folder = os.path.expanduser("~")
-        external_program_path = os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "fossils.exe")
         args = [python_file_path]
+        from . import __name__ as __main__
+        prefs = bpy.context.preferences.addons[__main__].preferences
+        fossils_path = prefs.fossils_path
+        self.report({'INFO'}, f"Running Fossils from path: {fossils_path}")
+
 
         if context.scene.display_existing_results:
             args.append("--post")
 
         if not context.scene.open_results_when_finish:
             args.append("--nogui")
-
+        
         try:
-            
-            if context.scene.run_as_admin:
-                
+            if platform.system() == 'Windows' and context.scene.run_as_admin:
                 args = ' '.join(args)
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", external_program_path, args, python_file_path, 1)
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", fossils_path, args, python_file_path, 1)
             else:
-
-                subprocess.Popen([external_program_path] + args, creationflags=subprocess.CREATE_NEW_CONSOLE)
-
-                
-            self.report({'INFO'}, f"External program '{external_program_path}' started successfully with Python file: '{python_file_path}'")
+                if platform.system() == 'Windows':
+                    subprocess.Popen([fossils_path] + args, creationflags=subprocess.CREATE_NEW_CONSOLE)
+                elif platform.system() == 'Linux':
+                    subprocess.Popen(['xterm', '-e', fossils_path] + args)
+            
+            self.report({'INFO'}, f"External program '{fossils_path}' started successfully with Python file: '{python_file_path}'")
         except Exception as e:
-            self.report({'ERROR'}, f"Error starting external program: {e} be sure that fossils is instaled in ..\AppData\Local\Programs\Fossils\fossils.exe and the selected folder cointain the script.py file and folder with sub-meshes")
+            self.report({'ERROR'}, f"Error starting external program: {e}. Be sure to have the correct path to Fossils in the preferences. Command: {fossils_path} {args}")
 
         return {'FINISHED'}
     
@@ -57,6 +67,8 @@ class VIEW3D_OT_OpenFEAResultsFolderOperator(Operator):
         user_folder = os.path.expanduser("~")
         file_path = bpy.path.abspath(context.scene.selected_folder)
         new_folder_name = context.scene.new_folder_name.lower()
+        prefs = bpy.context.preferences.addons[__name__].preferences
+        fossils_path = prefs.fossils_path
 
         fea_results_folders = [
             os.path.join(file_path, "workspace",new_folder_name+"_script"),
@@ -74,6 +86,6 @@ class VIEW3D_OT_OpenFEAResultsFolderOperator(Operator):
             bpy.ops.wm.path_open(filepath=found_folder)
             self.report({'INFO'}, f"FEA results folder opened: {found_folder}")
         else:
-            self.report({'ERROR'}, f"FEA results folder not found. Verify Fossils is installed in {user_folder}\Appdata\Local\Programs or you have run a FEA before")
+            self.report({'ERROR'}, f"FEA results folder not found. Verify Fossils is installed in {fossils_path} or you have run a FEA before")
 
         return {'FINISHED'}
