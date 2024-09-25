@@ -113,26 +113,34 @@ def convert_files():
         threading.Thread(target=run_conversion, args=(folder_path, file, export_options)).start()
 
 def run_conversion(folder_path, file, export_options):
-    # Determine the executable name based on the operating system
+    # Obtener la ruta del directorio donde se encuentra el archivo main.py
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Determinar el nombre del ejecutable o script basado en el sistema operativo
     if platform.system() == "Windows":
         executable_name = 'Convert_to_csv.exe'
     else:
         executable_name = 'Convert_to_csv'
     
-    # Find the executable in the same directory as the main executable
-    executable_path = os.path.join(os.path.dirname(sys.executable), executable_name)
+    # Construir la ruta completa al ejecutable o script
+    executable_path = os.path.join(base_dir, executable_name)
+    script_path = os.path.join(base_dir, 'Convert_to_csv.py')
     
-    # Check if the file exists
-    if not os.path.isfile(executable_path):
-        print(f"Error: Executable file not found at {executable_path}")
+    # Verificar si el archivo es un ejecutable o un script Python
+    if os.path.isfile(executable_path):
+        command = [executable_path, folder_path, file] + export_options
+    elif os.path.isfile(script_path):
+        command = [sys.executable, script_path, folder_path, file] + export_options
+    else:
+        print(f"Error: Neither executable nor script file found at {executable_path} or {script_path}")
         return
     
-    process = subprocess.Popen([executable_path, folder_path, file] + export_options, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    # Ejecutar el comando
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     for line in process.stdout:
         print(line, end='')
     for line in process.stderr:
         print(line, end='')
-
 def clear_log():
     log_text.delete(1.0, tk.END)
 
