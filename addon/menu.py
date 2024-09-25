@@ -4,10 +4,10 @@
 import bpy
 from bpy.types import Operator, Panel
 
-class VIEW3D_PT_FEITOMenu_PT(bpy.types.Panel):
-    bl_idname = "VIEW3D_PT_FEITOMenu_PT"
-    bl_label = "FEITO"
-    bl_category = "FEITO"
+class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
+    bl_idname = "VIEW3D_PT_BFEXMenu_PT"
+    bl_label = "BFEX"
+    bl_category = "BFEX"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_options = {'HEADER_LAYOUT_EXPAND'}
@@ -181,18 +181,18 @@ class VIEW3D_PT_FEITOMenu_PT(bpy.types.Panel):
 
 
         # Export for Sensitivity Analysis Section
-        box = layout.box()
-        box.label(text="Export for Sensitivity Analysis")
-        row = box.row()
-        row.prop(context.scene, "sample_name", text="Sample name", icon='GREASEPENCIL')
-        split = box.split(factor=0.5)
-        col1 = split.column(align=True)
-        col2 = split.column(align=True)
+        # box = layout.box()
+        # box.label(text="Export for Sensitivity Analysis")
+        # row = box.row()
+        # row.prop(context.scene, "sample_name", text="Sample name", icon='GREASEPENCIL')
+        # split = box.split(factor=0.5)
+        # col1 = split.column(align=True)
+        # col2 = split.column(align=True)
 
-        col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
-        col2.operator("view3d.submit_sample", text="Submit Sample", icon='EXPORT')
-        row = box.row()
-        row.prop(context.scene, "scale_factor", text="Scale Factor")
-        row.prop(context.scene, "total_faces", text="Number of faces")
-        row = box.row()
-        row.operator("view3d.export_sensitivity_analysis", text="Export for Sensitivity Analysis")
+        # col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
+        # col2.operator("view3d.submit_sample", text="Submit Sample", icon='EXPORT')
+        # row = box.row()
+        # row.prop(context.scene, "scale_factor", text="Scale Factor")
+        # row.prop(context.scene, "total_faces", text="Number of faces")
+        # row = box.row()
+        # row.operator("view3d.export_sensitivity_analysis", text="Export for Sensitivity Analysis")
