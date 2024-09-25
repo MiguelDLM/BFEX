@@ -1,7 +1,7 @@
 # BFEX - Blender FEA Exporter
 
 BFEX is an add-on designed to facilitate the creation of files required for Finite Element Analysis (FEA) within Blender. The add-on offers a range of functionalities to streamline the process, allowing users to:
-![Addon Menu](https://github.com/MiguelDLM/BFEX/main/Addon%20menu.png)
+![Addon Menu](https://github.com/MiguelDLM/BFEX/blob/main/Addon%20menu.png)
 ## Features
 
 1. **Create Muscle Attachment Surfaces:**
