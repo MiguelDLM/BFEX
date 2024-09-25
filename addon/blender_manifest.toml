@@ -1,11 +1,11 @@
 schema_version = "1.0.0"
-id = "FEITO"
+id = "BFEX"
 version = "1.0.0"
-name = "FEITO"
-tagline = "An Add-on for generating files for Fossil software (Finite Elements Analysis) files in Blender"
+name = "Blender Finite Element eXporter"
+tagline = "An Add-on for Blender that export files for Finite Element Analysis in Fossils"
 maintainer = "Miguel Díaz de León <migueldlm1307@gmai.com>"
 type = "add-on"
-website = "https://github.com/MiguelDLM/FEITO/"
+website = "https://github.com/MiguelDLM/BFEX/"
 tags = ["Import-Export", "User Interface"]
 blender_version_min = "4.2.0"
 license = [

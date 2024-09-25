@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "FEITO",
+    "name": "BFEX",
     "blender": (2, 80, 0),
     "category": "Mesh",
     "author": "E. Miguel Diaz de Leon-Munoz",
@@ -85,8 +85,8 @@ def process_point(operator, context, point_number, point_type):
 # Interface Panel
 class VIEW3D_PT_FilePathPanel_PT(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_FilePathPanel_PT"
-    bl_label = "FEITO"
-    bl_category = "FEITO"
+    bl_label = "BFEX"
+    bl_category = "BFEX"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_options = {'HEADER_LAYOUT_EXPAND'}
