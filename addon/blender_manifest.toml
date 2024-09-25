@@ -14,8 +14,8 @@ license = [
 copyright = [
   "2024 Miguel Díaz de León" 
 ]
-platforms = ["windows-x64", "macos-arm64", "linux-x64"]
 [permissions]
+files = "Import/export FBX from/to disk"
 [build]
 paths_exclude_pattern = [
    "__pycache__/",
