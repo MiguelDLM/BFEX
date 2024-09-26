@@ -34,6 +34,7 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
         if file_path:
             try:
                 
+            
                 collection_name = context.scene.new_folder_name
                 collection = bpy.data.collections.get(collection_name)
                 selected_main_object = context.scene.selected_main_object                
@@ -117,7 +118,7 @@ if __name__ == "__main__":
 
 """
 
-                    script_file_path = os.path.join(file_path, "script.py")
+                    script_file_path = os.path.join(file_path, f"{collection_name}.py")
                     with open(script_file_path, "w") as script_file:
                         script_file.write(script_content)
                         

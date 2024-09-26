@@ -116,7 +116,7 @@ Ensure that Fossils is installed, and the path is correctly set in the add-on pr
 
 ## Extra
 
-~~If you experience low performance in GMSH (software used for Fossils to visualize the results), it might be necessary to remove some elements from the scene to improve performance. You can do this before opening the results by editing the .opt file. ~~
+~~If you experience low performance in GMSH (software used for Fossils to visualize the results), it might be necessary to remove some elements from the scene to improve performance. You can do this before opening the results by editing the .opt file.~~
 
 ~~To simplify this process, you can download the `modify_opt.py` file. Copy the file to your results folder or any other folder in a upper level. To automatically modify the OPT file, simply drag and drop your OPT file onto the python file or use double click to search all the opt files in the folder and subfolders to modify all of them. This will add some lines to hide certain elements in the visualization.~~
 

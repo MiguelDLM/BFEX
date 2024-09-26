@@ -25,7 +25,8 @@ class VIEW3D_OT_RunFossilsOperator(Operator):
     
     def execute(self, context):
         python_file_path = bpy.path.abspath(context.scene.selected_folder)
-        python_file_path = os.path.join(python_file_path, "script.py")
+        python_file = context.scene.new_folder_name + ".py"
+        python_file_path = os.path.join(python_file_path, python_file)
         args = [python_file_path]
         from . import __name__ as __main__
         prefs = bpy.context.preferences.addons[__main__].preferences
@@ -35,7 +36,7 @@ class VIEW3D_OT_RunFossilsOperator(Operator):
 
         if context.scene.display_existing_results:
             args.append("--post")
-
+        
         if not context.scene.open_results_when_finish:
             args.append("--nogui")
         
@@ -45,14 +46,13 @@ class VIEW3D_OT_RunFossilsOperator(Operator):
                 ctypes.windll.shell32.ShellExecuteW(None, "runas", fossils_path, args, python_file_path, 1)
             else:
                 if platform.system() == 'Windows':
-                    subprocess.Popen([fossils_path] + args, creationflags=subprocess.CREATE_NEW_CONSOLE)
+                    subprocess.Popen([fossils_path] + args, creationflags=subprocess.CREATE_NEW_CONSOLE, cwd=os.path.dirname(python_file_path))
                 elif platform.system() == 'Linux':
-                    subprocess.Popen(['xterm', '-e', fossils_path] + args)
-            
+                    subprocess.Popen(['xterm', '-e', fossils_path] + args, cwd=os.path.dirname(python_file_path))
+        
             self.report({'INFO'}, f"External program '{fossils_path}' started successfully with Python file: '{python_file_path}'")
         except Exception as e:
             self.report({'ERROR'}, f"Error starting external program: {e}. Be sure to have the correct path to Fossils in the preferences. Command: {fossils_path} {args}")
-
         return {'FINISHED'}
     
 
@@ -64,28 +64,12 @@ class VIEW3D_OT_OpenFEAResultsFolderOperator(Operator):
 
     def execute(self, context):
         # Carpeta del usuario
-        user_folder = os.path.expanduser("~")
         file_path = bpy.path.abspath(context.scene.selected_folder)
-        new_folder_name = context.scene.new_folder_name.lower()
-        prefs = bpy.context.preferences.addons[__name__].preferences
-        fossils_path = prefs.fossils_path
 
-        fea_results_folders = [
-            os.path.join(file_path, "workspace",new_folder_name+"_script"),
-            os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "_internal", "workspace"),
-            os.path.join(user_folder, "AppData", "Local", "Programs", "Fossils", "workspace")
-        ]
-
-        found_folder = None
-        for fea_results_folder in fea_results_folders:
-            if os.path.exists(fea_results_folder):
-                found_folder = fea_results_folder
-                break
-
-        if found_folder:
-            bpy.ops.wm.path_open(filepath=found_folder)
-            self.report({'INFO'}, f"FEA results folder opened: {found_folder}")
+        if os.path.exists(file_path):
+            bpy.ops.wm.path_open(filepath=file_path)
+            self.report({'INFO'}, f"FEA results folder opened: {file_path}")
         else:
-            self.report({'ERROR'}, f"FEA results folder not found. Verify Fossils is installed in {fossils_path} or you have run a FEA before")
+            self.report({'ERROR'}, f"FEA results folder not found: {file_path}")
 
         return {'FINISHED'}
