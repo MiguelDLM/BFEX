@@ -1,7 +1,9 @@
 # BFEX - Blender FEA Exporter
 
 BFEX is an add-on designed to facilitate the creation of files required for Finite Element Analysis (FEA) within Blender. The add-on offers a range of functionalities to streamline the process, allowing users to:
+
 ![Addon Menu](https://github.com/MiguelDLM/BFEX/blob/main/Addon%20menu.png)
+
 ## Features
 
 1. **Create Muscle Attachment Surfaces:**
@@ -23,7 +25,7 @@ BFEX is an add-on designed to facilitate the creation of files required for Fini
 
 To install the add-on, follow these steps:
 
-1. Download the Add-on folder from the repository and compress it into a ZIP file or download the zip file directly from the releases ![here](https://github.com/MiguelDLM/BFEX/releases).
+1. Download the Add-on folder from the repository and compress it into a ZIP file or download the zip file directly from the releases [here](https://github.com/MiguelDLM/BFEX/releases).
 2. In Blender, navigate to Edit > Preferences > Get Extensions, click on the right corner drop-down menu, and select "Install from disk."
 3. Locate and select the zip file.
 4. Activate the add-on by checking the corresponding checkbox.
@@ -51,7 +53,7 @@ Ensure your mesh is free of errors by utilizing the 3D print add-on and clicking
    - Type the name of the muscle/sub-mesh to be subtracted.
    - In Object mode, select the main bone/object.
    - Click "Start Selection" to enter Edit mode and activate the lasso selection tool.
-   - Select surfaces for extraction and click "Submit Selection" to create a new submesh in the collection.
+   - Select surfaces for extraction and click "Submit Selection" to create a new sub-mesh in the collection.
 
 4. **Force Direction Setup:**
    - Click "Select Focal Point" to choose a point on a reference object where the force will be applied.
@@ -80,8 +82,8 @@ Ensure your mesh is free of errors by utilizing the 3D print add-on and clicking
 
 11. **Export and Run Fossils:**
     - Set material properties like Young's Modulus and Poisson's Ratio.
-    - Click "Export Files" to export submeshes and the Python script for Fossils.
-    - Click "Run Fossils" to initiate the FEA analysis.
+    - Click "Export Files" to export sub-meshes and the Python script for Fossils.
+    - Click "Run Fossils" to initiate the FEA analysis (add the path to fossils in the preferences' menu)
 
 12. **Results and Visualization:**
     - Use buttons like "Open FEA Results Folder" and "Visual Elements" to navigate and visualize results.
@@ -101,6 +103,7 @@ This error occurs when sub-meshes contain zero faces (empty meshes). Before clic
 	1 to be identified
 	0 successfully identified
 This error occurs when nodes (contact/constraint points) are not identified.
+
 #### Option 1
  Check your coordinate system and use the "Visual Elements" section to view the coordinates of the contact and constraint points. If the coordinates appear in a different location, you may not have applied the rotation changes to your meshes. Go to Object > Apply > Rotation or Object > Apply > Translation (Ctrl+A).
 
@@ -109,26 +112,27 @@ Ensure that you selected the contact/constraint points over the main mesh. If yo
 
 ### Error: Fossils don't start
 
-Ensure that Fossils is installed and the path is correctly set in the add-on preferences. If Fossils is not installed, download it from the [Fossils website](https://https://gitlab.uliege.be/rboman/fossils/-/releases) and set the path in the add-on preferences.
+Ensure that Fossils is installed, and the path is correctly set in the add-on preferences. If Fossils is not installed, download it from the [Fossils website](https://https://gitlab.uliege.be/rboman/fossils/-/releases) and set the path in the add-on preferences.
 
 ## Extra
 
-~~If you experience low performance in GMSH (software used for Fossils to visualize the results), it might be necessary to remove some elements from the scene to improve performance. You can do this before opening the results by editing the .opt file.
+~~If you experience low performance in GMSH (software used for Fossils to visualize the results), it might be necessary to remove some elements from the scene to improve performance. You can do this before opening the results by editing the .opt file. ~~
 
-To simplify this process, you can download the `modify_opt.py` file. Copy the file to your results folder or any other folder in a upper level. To automatically modify the OPT file, simply drag and drop your OPT file onto the python file or use double click to search all the opt files in the folder and subfolders to modify all of them. This will add some lines to hide certain elements in the visualization.
+~~To simplify this process, you can download the `modify_opt.py` file. Copy the file to your results folder or any other folder in a upper level. To automatically modify the OPT file, simply drag and drop your OPT file onto the python file or use double click to search all the opt files in the folder and subfolders to modify all of them. This will add some lines to hide certain elements in the visualization.~~
 
-[Download script_modify_opt.py](https://github.com/MiguelDLM/BFEX/blob/main/modify_opt.py)  
+~~[Download script_modify_opt.py](https://github.com/MiguelDLM/BFEX/blob/main/modify_opt.py)  ~~
 
-Additionally, you can run Fossils in batch mode to avoid the GMSH interface. To do this, you can use the `batch.py` script. This script will run Fossils in batch mode. You only need to place the script in the same folder as your python scripts. You can choose which python scripts to run by inputting the number from the displayed list. The script will run the selected python script and close Fossils after the analysis is complete.~~
+~~Additionally, you can run Fossils in batch mode to avoid the GMSH interface. To do this, you can use the `batch.py` script. This script will run Fossils in batch mode. You only need to place the script in the same folder as your python scripts. You can choose which python scripts to run by inputting the number from the displayed list. The script will run the selected python script and close Fossils after the analysis is complete.~~
 
 Now you can download the binaries to run Fossils in batch mode and convert the results to VTK and CSV files. The binaries consist of two executables, keep them in the same folder since they are dependent on each other. You can input the path of the Fossils installation and select the folder where your python script(s) are located. Once loaded the folder, you can select the python script to run o convert. If you want to convert the results, be sure the results are in a folder with the same name as the python script and next to it. The folders need to have the following structure:
+
 ```
-Folder
-│   script.py
-│   script
-│   │   Smooth_stress_tensor.msh
-│   │   mesh.msh
-│   │   ...
+Folder/
+├── script.py
+└── script/
+    ├── Smooth_stress_tensor.msh
+    ├── mesh.msh
+    └── ...
 ```
 
 We welcome pull requests. For major changes, please open an issue first to discuss the proposed changes. Be sure to update tests as appropriate.
