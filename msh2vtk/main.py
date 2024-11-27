@@ -102,8 +102,8 @@ def convert_files():
         return
 
     export_options = []
-    if export_von_misses_var.get():
-        export_options.append("--export-von-misses")
+    if export_von_mises_var.get():
+        export_options.append("--export-von-mises")
     if export_smooth_stress_var.get():
         export_options.append("--export-smooth-stress")
     if export_vtk_var.get():
@@ -205,10 +205,10 @@ file_canvas.create_window((0, 0), window=file_frame_inner, anchor='nw')
 file_frame_inner.bind("<Configure>", lambda e: file_canvas.configure(scrollregion=file_canvas.bbox("all")))
 file_canvas.configure(yscrollcommand=scrollbar.set)
 
-export_von_misses_var = tk.BooleanVar(value=True)
-export_von_misses_check = ctk.CTkCheckBox(convert_section, text="Export Stress Summary (CSV)", variable=export_von_misses_var)
-export_von_misses_check.select()
-export_von_misses_check.pack(pady=5)
+export_von_mises_var = tk.BooleanVar(value=True)
+export_von_mises_check = ctk.CTkCheckBox(convert_section, text="Export Stress Summary (CSV)", variable=export_von_mises_var)
+export_von_mises_check.select()
+export_von_mises_check.pack(pady=5)
 
 export_smooth_stress_var = tk.BooleanVar(value=True)
 export_smooth_stress_check = ctk.CTkCheckBox(convert_section, text="Export Stress and Forces (CSV)", variable=export_smooth_stress_var)
