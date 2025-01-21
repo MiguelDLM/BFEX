@@ -77,11 +77,21 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
 
             # Create new mesh
             try:
+
                 bpy.ops.object.duplicate(linked=False)
+                bpy.ops.object.mode_set(mode='OBJECT')
+                temp_vgroup = bpy.context.active_object.vertex_groups.new(name="temp_selection")
+                selected_vertices = [v.index for v in bpy.context.active_object.data.vertices if v.select]
+                temp_vgroup.add(selected_vertices, 1.0, 'REPLACE')
                 bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.reveal()
+                bpy.ops.mesh.select_all(action='DESELECT')
+                bpy.ops.object.vertex_group_select()
                 bpy.ops.mesh.select_all(action='INVERT')
                 bpy.ops.mesh.delete(type='FACE')
                 bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.context.active_object.vertex_groups.remove(temp_vgroup)
+
             except Exception as e:
                 self.report({'ERROR'}, f"Failed to create new mesh: {str(e)}")
                 return {'CANCELLED'}
