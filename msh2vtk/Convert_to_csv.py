@@ -7,7 +7,7 @@ import pyvista as pv
 from pyvista import _vtk as vtk
 import argparse
 import sys
-import cupy as cp
+#import cupy as cp
 
 def find_msh_files(python_file):
     folder_path = os.path.splitext(python_file)[0]
