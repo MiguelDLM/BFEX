@@ -48,7 +48,7 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
         svm = np.sqrt(((xx - yy) ** 2 + (yy - zz) ** 2 + (zz - xx) ** 2) / 2 + 3 * (xy * xy + yz * yz + zx * zx))
         svms.append(svm)
     svms = np.array(svms)
-    svmData = pd.DataFrame({'Von Mises Stress': svms}, index=nodeTags)
+    svmData = pd.DataFrame({'Von mises Stress': svms}, index=nodeTags)
 
     nodeData.reset_index(drop=True, inplace=True)
     svmData.reset_index(drop=True, inplace=True)
@@ -77,7 +77,7 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
                 cells.append(np.insert(element - 1, 0, numNodesPerElement))
         cellsArray = np.concatenate(cells).astype(np.int_)
         mesh = pv.PolyData(points, cellsArray)
-        mesh.point_data['Von Mises Stress'] = svms
+        mesh.point_data['Von mises Stress'] = svms
         mesh.point_data['Forces'] = forces
         vtk_file_path = os.path.join(output_folder, 'combined_data.vtk')
         mesh.save(vtk_file_path)
@@ -87,27 +87,27 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
     if export_von_mises:
         tolerance = 1e-4
         results_list = []
-        max_von_mises_stress = combinedData['Von Mises Stress'].max()
-        max_von_mises_stress_row = combinedData.loc[combinedData['Von Mises Stress'].idxmax()]
+        max_von_mises_stress = combinedData['Von mises Stress'].max()
+        max_von_mises_stress_row = combinedData.loc[combinedData['Von mises Stress'].idxmax()]
         max_von_mises_stress_coords = max_von_mises_stress_row[['X', 'Y', 'Z']].values
-        min_von_mises_stress = combinedData['Von Mises Stress'].min()
-        average_von_mises_stress = combinedData['Von Mises Stress'].mean()
+        min_von_mises_stress = combinedData['Von mises Stress'].min()
+        average_von_mises_stress = combinedData['Von mises Stress'].mean()
         results_list.append({
             'Value': 'Maximum',
-            'Von Mises Stress': max_von_mises_stress,
+            'Von mises Stress': max_von_mises_stress,
             'Coordinate X': max_von_mises_stress_coords[0],
             'Coordinate Y': max_von_mises_stress_coords[1],
             'Coordinate Z': max_von_mises_stress_coords[2]
         })
-        results_list.append({'Value': 'Minimum', 'Von Mises Stress': min_von_mises_stress})
-        results_list.append({'Value': 'Average', 'Von Mises Stress': average_von_mises_stress})
+        results_list.append({'Value': 'Minimum', 'Von mises Stress': min_von_mises_stress})
+        results_list.append({'Value': 'Average', 'Von mises Stress': average_von_mises_stress})
 
-        combinedData2 = combinedData.sort_values(by='Von Mises Stress', ascending=False)
+        combinedData2 = combinedData.sort_values(by='Von mises Stress', ascending=False)
         num_nodes = len(combinedData2)
         num_nodes_to_exclude = int(num_nodes * 0.02)
         combinedData2 = combinedData2.iloc[num_nodes_to_exclude:]
-        average_von_mises_stress2 = combinedData2['Von Mises Stress'].mean()
-        results_list.append({'Value': 'Average (excluding 2% highest)', 'Von Mises Stress': average_von_mises_stress2})
+        average_von_mises_stress2 = combinedData2['Von mises Stress'].mean()
+        results_list.append({'Value': 'Average (excluding 2% highest)', 'Von mises Stress': average_von_mises_stress2})
 
         found_areas_of_interest = False
         area_von_mises_stress = {}
@@ -127,7 +127,7 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
                                 (abs(combinedData['Z'] - z) < tolerance)
                             ]
                             if not matching_rows.empty:
-                                von_mises_stress = matching_rows['Von Mises Stress'].mean()
+                                von_mises_stress = matching_rows['Von mises Stress'].mean()
                                 von_mises_stresses.append(von_mises_stress)
                             else:
                                 print(f"Coordinates ({x}, {y}, {z}) not found in combinedData.")
@@ -141,7 +141,7 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
             average_von_mises_stress, num_elements = data
             results_list.append({
                 'Value': name,
-                'Von Mises Stress': average_von_mises_stress,
+                'Von mises Stress': average_von_mises_stress,
                 'Coordinate X': None,
                 'Coordinate Y': None,
                 'Coordinate Z': None,
@@ -181,7 +181,7 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
                                     fixation['forces'] = [fx, fy, fz]
                                     results_list.append({
                                         'Value': fixation['name'],
-                                        'Von Mises Stress': None,
+                                        'Von mises Stress': None,
                                         'Coordinate X': x,
                                         'Coordinate Y': y,
                                         'Coordinate Z': z,
@@ -213,7 +213,7 @@ def main():
     parser = argparse.ArgumentParser(description="Process Python files and convert MSH to CSV and VTK.")
     parser.add_argument("directory", help="Directory containing the Python files.")
     parser.add_argument("files", nargs='+', help="List of Python files to process.")
-    parser.add_argument("--export-von-mises", action='store_true', help="Export Von Mises stress results.")
+    parser.add_argument("--export-von-mises", action='store_true', help="Export Von mises stress results.")
     parser.add_argument("--export-smooth-stress", action='store_true', help="Export smooth stress tensor to CSV.")
     parser.add_argument("--export-vtk", action='store_true', help="Export combined data to VTK.")
     args = parser.parse_args()
