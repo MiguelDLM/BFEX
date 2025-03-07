@@ -12,7 +12,7 @@ import mathutils
 import random
 from mathutils import Vector, kdtree
 
-from .menu import VIEW3D_PT_BFEXMenu_PT
+from .menu import VIEW3D_PT_BFEXMenu_PT, VIEW3D_OT_SelectFixationGroup, VIEW3D_OT_DeleteFixationGroup, VIEW3D_OT_UpdateLoadingScenario, VIEW3D_OT_UpdateFixationAttributes
 from .browse_folder import VIEW3D_OT_BrowseFolderOperator
 from .create_folder_and_collection import VIEW3D_OT_CreateFolderOperator
 from .submit_main_object import VIEW3D_OT_SubmitMainObjectOperator
@@ -33,7 +33,7 @@ from .refresh_fixations import View3D_OT_Refresh_FixationsOperator
 from .submit_load import View3D_OT_Submit_load
 from .refresh_loads import VIEW3D_OT_RefreshLoadsOperator   
 from .submit_focal_load import View3D_OT_SubmitFocalLoad
-from .delete_propertie import VIEW3D_OT_DeleteCustomProperty
+from .update_loading_scenario import VIEW3D_OT_UpdateLoadingScenario
 
 class BFEXPreferences(AddonPreferences):
     bl_idname = __name__
@@ -93,7 +93,10 @@ def register():
     bpy.utils.register_class(View3D_OT_Submit_load)
     bpy.utils.register_class(View3D_OT_SubmitFocalLoad)
     bpy.utils.register_class(VIEW3D_OT_RefreshLoadsOperator)
-    bpy.utils.register_class(VIEW3D_OT_DeleteCustomProperty)
+    bpy.utils.register_class(VIEW3D_OT_UpdateLoadingScenario)
+    bpy.utils.register_class(VIEW3D_OT_DeleteFixationGroup)
+    bpy.utils.register_class(VIEW3D_OT_SelectFixationGroup)
+    bpy.utils.register_class(VIEW3D_OT_UpdateFixationAttributes)
     
     
 
@@ -222,8 +225,16 @@ def register():
         min=0.0,
         description="Value of the force in Newtons",
     )
-
-    bpy.types.Scene.selected_option = EnumProperty(
+    
+    def update_loading_scenario(self, context):
+        """Actualiza la propiedad personalizada cuando cambia el dropdown"""
+        selected_muscle = context.scene.selected_muscle
+        if selected_muscle and "Loading scenario" in selected_muscle:
+            selected_muscle["Loading scenario"] = context.scene.selected_option
+        return None
+    
+    # Y modifica tu EnumProperty para incluir esta función de actualización
+    bpy.types.Scene.selected_option = bpy.props.EnumProperty(
         items=[
             ('U', "Uniform-traction", "U: Uniform-traction"),
             ('T', "Tangential-traction", "T: Tangential-traction"),
@@ -234,6 +245,7 @@ def register():
         name="Options",
         default='T+N',
         description="Select an option",
+        update=update_loading_scenario  # Esta es la función que se llamará al cambiar el valor
     )
 
     bpy.types.Scene.fixation_type = EnumProperty(
@@ -244,6 +256,11 @@ def register():
         name="Fixation Type",
         default='contact',
         description="Select a fixation type",
+    )
+
+    bpy.types.Scene.current_fixation_group = bpy.props.StringProperty(
+        name="Current Fixation Group",
+        description="Currently selected fixation group"
     )
 
     bpy.types.Scene.fixation_point_coordinates = StringProperty(
@@ -401,7 +418,10 @@ def unregister():
         View3D_OT_Submit_load,
         View3D_OT_SubmitFocalLoad,
         VIEW3D_OT_RefreshLoadsOperator,
-        VIEW3D_OT_DeleteCustomProperty
+        VIEW3D_OT_UpdateLoadingScenario,
+        VIEW3D_OT_DeleteFixationGroup,
+        VIEW3D_OT_SelectFixationGroup,
+        VIEW3D_OT_UpdateFixationAttributes
     ]
     
     for cls in classes:

@@ -57,7 +57,7 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
         bpy.ops.object.mode_set(mode='OBJECT')  
         # add the coordinates as a custom property to the selected muscle
         selected_muscle = context.scene.selected_muscle
-        selected_muscle["Focal point coordinates"] = context.scene.focal_point_coordinates
+        selected_muscle["Focal point"] = context.scene.focal_point_coordinates
 
         self.report({'INFO'}, f"Focal Point coordinates: {context.scene.focal_point_coordinates}")
 
