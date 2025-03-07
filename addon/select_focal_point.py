@@ -12,24 +12,30 @@ class VIEW3D_OT_SelectFocalPointOperator(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.active_object is not None
+        return context.scene.selected_reference_object is not None
 
     def execute(self, context):
-        obj = context.active_object
+        obj = context.scene.selected_reference_object
+
+        #Change to object mode
+        bpy.ops.object.mode_set(mode='OBJECT')
 
         # Check if the object is a mesh
         if obj.type != 'MESH':
             self.report({'ERROR'}, f"Object '{obj.name}' is not a mesh.")
             return {'CANCELLED'}
-
+        
         # Ensure the active object is in 'OBJECT' mode before switching to 'EDIT' mode
         if obj.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
 
-        bpy.ops.object.select_all(action='DESELECT')
+        # Deselect all objects
+        bpy.ops.object.select_all(action='DESELECT')    
+        obj.select_set(True)
+        context.view_layer.objects.active = obj
+
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.context.tool_settings.mesh_select_mode[0] = True 
-        bpy.context.tool_settings.mesh_select_mode[1] = False
-        bpy.context.tool_settings.mesh_select_mode[2] = False
+        bpy.context.tool_settings.mesh_select_mode = (True, False, False)
+        
         return {'FINISHED'}

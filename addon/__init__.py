@@ -33,6 +33,7 @@ from .refresh_fixations import View3D_OT_Refresh_FixationsOperator
 from .submit_load import View3D_OT_Submit_load
 from .refresh_loads import VIEW3D_OT_RefreshLoadsOperator   
 from .submit_focal_load import View3D_OT_SubmitFocalLoad
+from .delete_propertie import VIEW3D_OT_DeleteCustomProperty
 
 class BFEXPreferences(AddonPreferences):
     bl_idname = __name__
@@ -92,6 +93,7 @@ def register():
     bpy.utils.register_class(View3D_OT_Submit_load)
     bpy.utils.register_class(View3D_OT_SubmitFocalLoad)
     bpy.utils.register_class(VIEW3D_OT_RefreshLoadsOperator)
+    bpy.utils.register_class(VIEW3D_OT_DeleteCustomProperty)
     
     
 
@@ -118,10 +120,28 @@ def register():
         if context.scene.open_results_when_finish:
             context.scene.display_existing_results = False
 
-    bpy.types.Scene.selected_main_object = bpy.props.StringProperty(
-        name="Selected Main Object",
-        default="",
-        description="Name or identifier for the selected main object"
+    bpy.types.Scene.selected_main_object = bpy.props.PointerProperty(
+        name="Main Object",
+        type=bpy.types.Object,
+        description="Main object to be used for the FEA model"
+    )
+
+    bpy.types.Scene.selected_reference_object = bpy.props.PointerProperty(
+        name="Reference Object",
+        type=bpy.types.Object,
+        description="Reference object to be used for the FEA model"
+    )
+
+    bpy.types.Scene.muscle_created = bpy.props.BoolProperty(
+        name="Muscle Created",
+        default=False,
+        description="Flag to check if muscle is created"
+    )
+
+    bpy.types.Scene.selected_muscle = bpy.props.PointerProperty(
+        name="Selected Muscle",
+        type=bpy.types.Object,
+        description="Selected muscle object"
     )
 
     bpy.types.Scene.muscle_parameters = bpy.props.StringProperty(
@@ -381,6 +401,7 @@ def unregister():
         View3D_OT_Submit_load,
         View3D_OT_SubmitFocalLoad,
         VIEW3D_OT_RefreshLoadsOperator,
+        VIEW3D_OT_DeleteCustomProperty
     ]
     
     for cls in classes:
@@ -417,6 +438,9 @@ def unregister():
         "scale_factor",
         "total_faces",
         "load_input_method",
+        "selected_reference_object",
+        "selected_muscle",
+        "muscle_created"
     ]
     
     for prop in properties:

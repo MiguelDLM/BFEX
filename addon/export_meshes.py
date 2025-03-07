@@ -19,8 +19,8 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
     @classmethod
     def poll(cls, context):
         # Verify that the selected folder, new folder name, and main object are valid
-        main_object_name = context.scene.selected_main_object
-        main_object = bpy.data.objects.get(main_object_name)
+        main_object = context.scene.selected_main_object
+
 
         return (
             context.scene.selected_folder and

@@ -3,6 +3,7 @@
 
 import bpy
 from bpy.types import Operator, Panel
+from .delete_propertie import VIEW3D_OT_DeleteCustomProperty
 
 class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_BFEXMenu_PT"
@@ -29,51 +30,73 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         col1 = split.column(align=True)
         col2 = split.column(align=True)
 
-        col1.operator("view3d.create_folder", text="Create Folder", icon='NEWFOLDER')
-        col2.operator("view3d.submit_object", text="Submit main bone for FEA", icon='BONE_DATA')
+        row
+        row.operator("view3d.create_folder", text="Create Folder", icon='NEWFOLDER')
+
+        row = box.row()
+
+        row.prop(context.scene, "selected_main_object", text="Main Object", icon='OBJECT_DATA')
+        row = box.row()
+        row.prop(context.scene, "selected_reference_object", text="Reference Object", icon='OBJECT_DATA')
 
         # Extract Surfaces Section
         box = layout.box()
         box.label(text="Extract muscle attachment areas and properties")
 
-        row = box.row()
-        row.prop(context.scene, "submesh_name", text="Muscle name", icon='GREASEPENCIL')
-        split = box.split(factor=0.5)
-        col1 = split.column(align=True)
-        col2 = split.column(align=True)
+        if not context.scene.muscle_created:
+            row = box.row()
+            row.prop(context.scene, "submesh_name", text="Muscle name", icon='GREASEPENCIL')
+            row = box.row()
+            
+            split = box.split(factor=0.5)
+            col1 = split.column(align=True)
+            col2 = split.column(align=True)
 
-        col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
-        col2.operator("view3d.submit_selection", text="Submit Selection", icon='EXPORT')
+            col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
+            col2.operator("view3d.submit_selection", text="Submit Selection", icon='EXPORT')
+        else:
+            row = box.row()
+            row.prop(context.scene, "selected_muscle", text="Selected Muscle", icon='OBJECT_DATA')
 
+            # Custom properties
+            selected_muscle = context.scene.selected_muscle
+            if selected_muscle:
+                for prop_name in selected_muscle.keys():
+                    row = box.row(align=True)
+                    row.prop(selected_muscle, f'["{prop_name}"]', text=prop_name)
+                    op = row.operator("view3d.delete_custom_property", text="", icon='X')
+                    op.property_name = prop_name
+                    
+                    
 
-        box.label(text="Direction of the force")
+            box.label(text="Direction of the force")
 
-        # Focal Point Coordinates
-        row = box.row()
-        row.prop(context.scene, "focal_point_coordinates", text="Focal Point Coordinates", emboss=False, icon='VIEW3D')
-        split = box.split(factor=0.5)
-        col1 = split.column(align=True)
-        col2 = split.column(align=True)
+            # Focal Point Coordinates
+            row = box.row()
+            split = box.split(factor=0.5)
+            col1 = split.column(align=True)
+            col2 = split.column(align=True)
 
-        col1.operator("view3d.select_focal_point", text="Select Focal Point", icon='RESTRICT_SELECT_OFF')
-        col2.operator("view3d.submit_focal_point", text="Submit Focal Point", icon='EXPORT')
+            col1.operator("view3d.select_focal_point", text="Select Focal Point", icon='RESTRICT_SELECT_OFF')
+            col2.operator("view3d.submit_focal_point", text="Submit Focal Point", icon='EXPORT')
 
-        #Muscle parameters section
-        box.label(text="Muscle Parameters")
-        row = box.row()
-        row.prop(context.scene, "force_value", text="Force")
+            # Muscle parameters section
+            box.label(text="Muscle Parameters")
+            row = box.row()
+            row.prop(context.scene, "force_value", text="Force")
 
-        # Dropdown list for loading scenario
-        row = box.row()
-        row.prop(context.scene, "selected_option", text="Loading scenario")
+            # Dropdown list for loading scenario
+            row = box.row()
+            row.prop(context.scene, "selected_option", text="Loading scenario")
 
-        # Submit Parameters and Delete last parameters submitted in two columns
-        split = box.split(factor=0.5)
-        col1 = split.column(align=True)
-        col2 = split.column(align=True)
+            # Submit Parameters and Delete last parameters submitted in two columns
+            split = box.split(factor=0.5)
+            col1 = split.column(align=True)
+            col2 = split.column(align=True)
 
-        col1.operator("view3d.submit_parameters", text="Submit Parameters", icon='EXPORT')
-        col2.operator("view3d.refresh_parameters", text="Refresh parameters list", icon='TRASH')
+            col1.operator("view3d.submit_parameters", text="Submit Parameters", icon='EXPORT')
+            col2.operator("view3d.refresh_parameters", text="Refresh parameters list", icon='TRASH')
+
         
         # Contact Points Section
         box = layout.box()
