@@ -3,7 +3,7 @@
 
 import bpy
 from bpy.types import Operator, Panel
-from .delete_propertie import VIEW3D_OT_DeleteCustomProperty
+from .update_loading_scenario import VIEW3D_OT_UpdateLoadingScenario
 
 class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_BFEXMenu_PT"
@@ -43,60 +43,65 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         box = layout.box()
         box.label(text="Extract muscle attachment areas and properties")
 
-        if not context.scene.muscle_created:
-            row = box.row()
-            row.prop(context.scene, "submesh_name", text="Muscle name", icon='GREASEPENCIL')
-            row = box.row()
-            
-            split = box.split(factor=0.5)
-            col1 = split.column(align=True)
-            col2 = split.column(align=True)
+        row = box.row()
+        row.prop(context.scene, "submesh_name", text="Muscle name", icon='GREASEPENCIL')
+        row = box.row()
+        
+        split = box.split(factor=0.5)
+        col1 = split.column(align=True)
+        col2 = split.column(align=True)
 
-            col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
-            col2.operator("view3d.submit_selection", text="Submit Selection", icon='EXPORT')
-        else:
-            row = box.row()
-            row.prop(context.scene, "selected_muscle", text="Selected Muscle", icon='OBJECT_DATA')
+        col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
+        col2.operator("view3d.submit_selection", text="Submit Selection", icon='EXPORT')
 
-            # Custom properties
-            selected_muscle = context.scene.selected_muscle
-            if selected_muscle:
-                for prop_name in selected_muscle.keys():
-                    row = box.row(align=True)
-                    row.prop(selected_muscle, f'["{prop_name}"]', text=prop_name)
-                    op = row.operator("view3d.delete_custom_property", text="", icon='X')
-                    op.property_name = prop_name
-                    
-                    
+        row = box.row()
+        row.prop(context.scene, "selected_muscle", text="Selected Muscle", icon='OBJECT_DATA')
 
-            box.label(text="Direction of the force")
+        # Replace the custom properties section with this code
+        selected_muscle = context.scene.selected_muscle
+        if selected_muscle:
+            # Force property - as float
+            if "Force" in selected_muscle.keys():
+                row = box.row(align=True)
+                row.label(text="Force (N):")
+                row.prop(selected_muscle, '["Force"]', text="")
 
-            # Focal Point Coordinates
-            row = box.row()
-            split = box.split(factor=0.5)
-            col1 = split.column(align=True)
-            col2 = split.column(align=True)
+            # Focal point property - as vector coordinates
+            if "Focal point" in selected_muscle.keys():
+                box.label(text="Focal point:")
+                # Parse the stored string to display as coordinates
+                focal_coords = selected_muscle["Focal point"].split(',')
+                if len(focal_coords) == 3:
+                    try:
+                        x, y, z = map(float, focal_coords)
+                        col = box.column(align=True)
+                        row = col.row(align=True)
+                        row.label(text="X:")
+                        row.label(text=str(round(x, 4)))
+                        row = col.row(align=True)
+                        row.label(text="Y:")
+                        row.label(text=str(round(y, 4)))
+                        row = col.row(align=True)
+                        row.label(text="Z:")
+                        row.label(text=str(round(z, 4)))
+                    except ValueError:
+                        row = box.row()
+                        row.prop(selected_muscle, '["Focal point"]', text="Focal point")
+                    # Focal Point Coordinates
+                    row = box.row()
+                    split = box.split(factor=0.5)
+                    col1 = split.column(align=True)
+                    col2 = split.column(align=True)
 
-            col1.operator("view3d.select_focal_point", text="Select Focal Point", icon='RESTRICT_SELECT_OFF')
-            col2.operator("view3d.submit_focal_point", text="Submit Focal Point", icon='EXPORT')
+                    col1.operator("view3d.select_focal_point", text="Select Focal Point", icon='RESTRICT_SELECT_OFF')
+                    col2.operator("view3d.submit_focal_point", text="Submit Focal Point", icon='EXPORT')
 
-            # Muscle parameters section
-            box.label(text="Muscle Parameters")
-            row = box.row()
-            row.prop(context.scene, "force_value", text="Force")
+            if "Loading scenario" in selected_muscle.keys():
+                row = box.row(align=True)
+                row.label(text="Loading scenario:")
 
-            # Dropdown list for loading scenario
-            row = box.row()
-            row.prop(context.scene, "selected_option", text="Loading scenario")
-
-            # Submit Parameters and Delete last parameters submitted in two columns
-            split = box.split(factor=0.5)
-            col1 = split.column(align=True)
-            col2 = split.column(align=True)
-
-            col1.operator("view3d.submit_parameters", text="Submit Parameters", icon='EXPORT')
-            col2.operator("view3d.refresh_parameters", text="Refresh parameters list", icon='TRASH')
-
+                sub_row = row.row()
+                sub_row.prop(context.scene, "selected_option", text="")
         
         # Contact Points Section
         box = layout.box()
@@ -109,17 +114,58 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         col.prop(context.scene, "fixation_type", text="Fixation Type")
         col = box.column(align=True)
         col.operator("view3d.select_fixation_point", text="Select fixation Point", icon='RESTRICT_SELECT_OFF')
+        row = box.row()
+        row.operator("view3d.submit_fixation_point", text="Submit fixation Point", icon='EXPORT')
 
-        # Select Axes Section for Contact Points
+        box_groups = box.box()
+        box_groups.label(text="Fixation Groups")
+
+        main_obj = None
+        if context.scene.selected_main_object:
+            if isinstance(context.scene.selected_main_object, str):
+                main_obj = bpy.data.objects.get(context.scene.selected_main_object)
+            else:
+                main_obj = context.scene.selected_main_object
+
+        
+        if main_obj and hasattr(main_obj, 'vertex_groups'):
+            has_groups = False
+            for vgroup in main_obj.vertex_groups:
+                if vgroup.name.startswith(("contact_", "constraint_")):
+                    has_groups = True
+                    row = box_groups.row(align=True)
+                    
+                    is_active = (context.scene.current_fixation_group == vgroup.name)
+                    if is_active:
+                        op = row.operator("view3d.select_fixation_group", 
+                                         text=vgroup.name, 
+                                         icon='GROUP_VERTEX',
+                                         depress=True) 
+                        op.group_name = vgroup.name
+                    else:
+                        # Grupo normal
+                        op = row.operator("view3d.select_fixation_group", 
+                                         text=vgroup.name, 
+                                         icon='GROUP_VERTEX')
+                        op.group_name = vgroup.name
+                    
+                    delete_op = row.operator("view3d.delete_fixation_group", text="", icon='X')
+                    delete_op.group_name = vgroup.name
+                    
+            if not has_groups:
+                box_groups.label(text="No fixation groups found")
+        else:
+            box_groups.label(text="No main object selected")
+        
+        # Select Axes Section for Contact Points (como estaba antes)
         row = box.row(align=True)
         row.label(text="Select Axes:")
         row.prop(context.scene, "fixation_x", text="X")
         row.prop(context.scene, "fixation_y", text="Y")
-        row.prop(context.scene, "fixation_z", text="Z")       
-
-        row = box.row()
-        row.operator("view3d.submit_fixation_point", text="Submit fixation Point", icon='EXPORT')
-        row.operator("view3d.refresh_fixation_points", text="Refresh fixation points list", icon='TRASH')
+        row.prop(context.scene, "fixation_z", text="Z")  
+        # Después de los checkboxes X, Y, Z
+        if context.scene.current_fixation_group:
+            row.operator("view3d.update_fixation_attributes", text="Apply", icon='CHECKMARK')
 
         # Material Properties Section
         box = layout.box()
@@ -219,3 +265,154 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         # row.prop(context.scene, "total_faces", text="Number of faces")
         # row = box.row()
         # row.operator("view3d.export_sensitivity_analysis", text="Export for Sensitivity Analysis")
+
+import bpy
+from bpy.types import Operator
+from bpy.props import StringProperty, BoolProperty
+
+class VIEW3D_OT_SelectFixationGroup(Operator):
+    bl_idname = "view3d.select_fixation_group"
+    bl_label = "Select Fixation Group"
+    bl_description = "Select vertices in the specified fixation group"
+    
+    group_name: StringProperty(
+        name="Group Name",
+        description="Name of the vertex group to select"
+    )
+    
+    def execute(self, context):
+        obj = context.scene.selected_main_object
+        
+        # Verificar si obj es un string o un objeto
+        if isinstance(obj, str):
+            obj = bpy.data.objects.get(obj)
+        
+        if obj and hasattr(obj, 'vertex_groups') and self.group_name in obj.vertex_groups:
+            # Asegurarse que estamos seleccionando el objeto correcto
+            bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
+            
+            # Cambiar a modo edición
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.select_all(action='DESELECT')
+            
+            # Activar el grupo de vértices
+            obj.vertex_groups.active_index = obj.vertex_groups[self.group_name].index
+            
+            # Seleccionar el grupo de vértices
+            bpy.ops.object.vertex_group_select()
+            
+            # Obtener atributos de fixation desde propiedades personalizadas
+            if "fixation_attributes" in obj and self.group_name in obj["fixation_attributes"]:
+                attrs = obj["fixation_attributes"][self.group_name]
+                context.scene.fixation_x = attrs.get("fixation_x", False)
+                context.scene.fixation_y = attrs.get("fixation_y", False)
+                context.scene.fixation_z = attrs.get("fixation_z", False)
+            else:
+                # Si no hay propiedades establecidas para este grupo, inicializar como False
+                context.scene.fixation_x = False
+                context.scene.fixation_y = False
+                context.scene.fixation_z = False
+            
+            # Guardar el grupo actual seleccionado
+            context.scene.current_fixation_group = self.group_name
+            
+            # Forzar actualización de la UI para mantener el resaltado
+            for area in context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
+
+            # Imprimir los valores de los atributos para depuración
+            print("fixation_x:", context.scene.fixation_x, 
+                  "fixation_y:", context.scene.fixation_y, 
+                  "fixation_z:", context.scene.fixation_z)
+            
+            self.report({'INFO'}, f"Selected vertex group: {self.group_name}")
+        else:
+            self.report({'ERROR'}, f"Vertex group {self.group_name} not found")
+        
+        return {'FINISHED'}
+
+class VIEW3D_OT_DeleteFixationGroup(Operator):
+    bl_idname = "view3d.delete_fixation_group"
+    bl_label = "Delete Fixation Group"
+    bl_description = "Delete the specified fixation group"
+    
+    group_name: StringProperty(
+        name="Group Name",
+        description="Name of the vertex group to delete"
+    )
+    
+    def execute(self, context):
+        obj = context.scene.selected_main_object
+        
+        # Verificar si obj es un string o un objeto
+        if isinstance(obj, str):
+            obj = bpy.data.objects.get(obj)
+        
+        if obj and hasattr(obj, 'vertex_groups') and self.group_name in obj.vertex_groups:
+            # Eliminar el grupo de vértices
+            vgroup = obj.vertex_groups[self.group_name]
+            obj.vertex_groups.remove(vgroup)
+            
+            # Limpiar la referencia al grupo actual si era este
+            if context.scene.current_fixation_group == self.group_name:
+                context.scene.current_fixation_group = ""
+                
+            self.report({'INFO'}, f"Deleted vertex group: {self.group_name}")
+        else:
+            self.report({'ERROR'}, f"Vertex group {self.group_name} not found")
+        
+        return {'FINISHED'}
+
+class VIEW3D_OT_UpdateFixationAttributes(Operator):
+    bl_idname = "view3d.update_fixation_attributes"
+    bl_label = "Update Fixation Attributes"
+    bl_description = "Update fixation attributes for the current vertex group"
+    
+    def execute(self, context):
+        if not context.scene.current_fixation_group:
+            self.report({'ERROR'}, "No fixation group selected")
+            return {'CANCELLED'}
+            
+        obj = context.scene.selected_main_object
+        if isinstance(obj, str):
+            obj = bpy.data.objects.get(obj)
+            
+        if not obj or not hasattr(obj, 'vertex_groups'):
+            self.report({'ERROR'}, "No valid object selected")
+            return {'CANCELLED'}
+            
+        # Verificar que el grupo existe
+        if context.scene.current_fixation_group not in obj.vertex_groups:
+            self.report({'ERROR'}, f"Vertex group {context.scene.current_fixation_group} not found")
+            return {'CANCELLED'}
+        
+        # Almacenar valores como propiedades personalizadas del grupo de vértices
+        group_name = context.scene.current_fixation_group
+        
+        # Crear un diccionario de propiedades si no existe
+        if "fixation_attributes" not in obj:
+            obj["fixation_attributes"] = {}
+            
+        # Acceder al diccionario
+        fixation_attrs = obj["fixation_attributes"]
+        
+        # Crear o actualizar la entrada para este grupo
+        if group_name not in fixation_attrs:
+            fixation_attrs[group_name] = {}
+            
+        # Actualizar los valores para este grupo
+        fixation_attrs[group_name] = {
+            "fixation_x": context.scene.fixation_x,
+            "fixation_y": context.scene.fixation_y,
+            "fixation_z": context.scene.fixation_z
+        }
+            
+        # Guardar de vuelta en el objeto
+        obj["fixation_attributes"] = fixation_attrs
+        
+        self.report({'INFO'}, f"Updated attributes for group: {group_name}")
+        return {'FINISHED'}

@@ -16,24 +16,15 @@ class VIEW3D_OT_SelectVertexOperator(Operator):
         return bool(context.scene.selected_main_object)
 
     def execute(self, context):
-        object_name = context.scene.selected_main_object
-        obj = bpy.data.objects.get(object_name)
+        active_object = context.scene.selected_main_object
+        context.view_layer.objects.active = active_object
 
         # Check if the object exists
-        if not obj:
-            self.report({'ERROR'}, f"Object '{object_name}' not found.")
+        if not active_object:
+            self.report({'ERROR'}, "No object selected")
             return {'CANCELLED'}
-
-        # Check if the object is a mesh
-        if obj.type != 'MESH':
-            self.report({'ERROR'}, f"Object '{object_name}' is not a mesh.")
-            return {'CANCELLED'}
-
-        # Make the object the active object
-        context.view_layer.objects.active = obj
-
-        # Ensure the active object is in 'OBJECT' mode before switching to 'EDIT' mode
-        if obj.mode != 'OBJECT':
+        
+        if active_object.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
 
         bpy.ops.object.select_all(action='DESELECT')

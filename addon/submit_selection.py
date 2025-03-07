@@ -92,26 +92,34 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
                 bpy.ops.object.mode_set(mode='OBJECT')
                 bpy.context.active_object.vertex_groups.remove(temp_vgroup)
 
+                # Rename mesh
+                bpy.context.active_object.name = submesh_name
+
+
+                # Delete duplicated mesh
+                original_collection = bpy.context.active_object.users_collection[0]
+                
+                # Move new mesh to the collection
+                collection.objects.link(bpy.context.active_object)
+
+                original_collection.objects.unlink(bpy.context.active_object)
+
+              
+                # Create custom properties for the mesh
+                bpy.context.active_object["Focal point"] = "0.0,0.0,0.0"  # Format as float coordinates
+                bpy.context.active_object["Loading scenario"] = "T+N"      # Default enum option
+                bpy.context.active_object["Force"] = 0.0                   # Float value, not string
+            
+
+                context.scene.muscle_created = True
+                context.scene.selected_muscle = bpy.context.active_object
+
+                self.report({'INFO'}, f"Submesh '{submesh_name}' created and added to collection '{collection_name}'")
+
             except Exception as e:
                 self.report({'ERROR'}, f"Failed to create new mesh: {str(e)}")
                 return {'CANCELLED'}
 
-            # Rename mesh
-            bpy.context.active_object.name = submesh_name
-
-
-            # Delete duplicated mesh
-            original_collection = bpy.context.active_object.users_collection[0]
-            
-            # Move new mesh to the collection
-            collection.objects.link(bpy.context.active_object)
-
-            original_collection.objects.unlink(bpy.context.active_object)
-
-            context.scene.muscle_created = True
-            context.scene.selected_muscle = bpy.context.active_object
-
-            self.report({'INFO'}, f"Submesh '{submesh_name}' created and added to collection '{collection_name}'")
 
         else:
             self.report({'ERROR'}, f"Collection '{collection_name}' not found. Please create it first.")
