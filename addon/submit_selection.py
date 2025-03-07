@@ -108,6 +108,9 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
 
             original_collection.objects.unlink(bpy.context.active_object)
 
+            context.scene.muscle_created = True
+            context.scene.selected_muscle = bpy.context.active_object
+
             self.report({'INFO'}, f"Submesh '{submesh_name}' created and added to collection '{collection_name}'")
 
         else:

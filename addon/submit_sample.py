@@ -38,4 +38,5 @@ class VIEW3D_OT_SubmitSampleOperator(Operator):
         bpy.context.view_layer.objects.active = bpy.context.active_object
         bpy.context.active_object.select_set(True)
 
+
         return {'FINISHED'}
