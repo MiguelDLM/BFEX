@@ -57,7 +57,8 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         row = box.row()
         row.prop(context.scene, "selected_muscle", text="Selected Muscle", icon='OBJECT_DATA')
 
-        # Replace the custom properties section with this code
+        # Muscle Properties Section
+
         selected_muscle = context.scene.selected_muscle
         if selected_muscle:
             # Force property - as float
@@ -66,10 +67,9 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
                 row.label(text="Force (N):")
                 row.prop(selected_muscle, '["Force"]', text="")
 
-            # Focal point property - as vector coordinates
             if "Focal point" in selected_muscle.keys():
                 box.label(text="Focal point:")
-                # Parse the stored string to display as coordinates
+
                 focal_coords = selected_muscle["Focal point"].split(',')
                 if len(focal_coords) == 3:
                     try:
@@ -95,14 +95,13 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
 
                     col1.operator("view3d.select_focal_point", text="Select Focal Point", icon='RESTRICT_SELECT_OFF')
                     col2.operator("view3d.submit_focal_point", text="Submit Focal Point", icon='EXPORT')
-
+            
             if "Loading scenario" in selected_muscle.keys():
                 row = box.row(align=True)
                 row.label(text="Loading scenario:")
-
                 sub_row = row.row()
                 sub_row.prop(context.scene, "selected_option", text="")
-        
+                
         # Contact Points Section
         box = layout.box()
         box.label(text="Fixation Points", icon='FORCE_FORCE')
@@ -117,8 +116,9 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         row = box.row()
         row.operator("view3d.submit_fixation_point", text="Submit fixation Point", icon='EXPORT')
 
-        # Reemplaza la sección de Fixation Groups existente por este código
-        
+
+        # Fixation Groups Section
+    
         box_groups = box.box()
         box_groups.label(text="Fixation Groups")
         
@@ -144,7 +144,7 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
                                          depress=True) 
                         op.group_name = vgroup.name
                     else:
-                        # Grupo normal
+
                         op = row.operator("view3d.select_fixation_group", 
                                          text=vgroup.name, 
                                          icon='GROUP_VERTEX')
@@ -153,21 +153,17 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
                     delete_op = row.operator("view3d.delete_fixation_group", text="", icon='X')
                     delete_op.group_name = vgroup.name
                     
-                    # Si el grupo está seleccionado, mostrar los checkboxes debajo
                     if is_active and "fixation_attributes" in main_obj and vgroup.name in main_obj["fixation_attributes"]:
                         attrs = main_obj["fixation_attributes"][vgroup.name]
-                        
-                        # Propiedades de fijación para edición
+
                         fixation_box = box_groups.box()
                         
-                        # Mostrar y permitir editar las restricciones por eje
                         row = fixation_box.row(align=True)
                         row.label(text="Select Axes:")
                         row.prop(context.scene, "fixation_x", text="X")
                         row.prop(context.scene, "fixation_y", text="Y")
                         row.prop(context.scene, "fixation_z", text="Z")
-                        
-                        # Botón para aplicar los cambios
+
                         row = fixation_box.row(align=True)
                         row.operator("view3d.update_fixation_attributes", text="Update Fixation Axes", icon='CHECKMARK')
                         
@@ -220,9 +216,9 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
             row.operator("view3d.submit_load", text="Submit Load", icon='EXPORT')
             row = box.row()
         
-        # Existing Loads Section - Mostrar las cargas que ya existen
+        # Existing Loads Section
         box_loads = box.box()
-        box_loads.label(text="Existing Loads")
+        box_loads.label(text="Stored Loads")
         
         main_obj = None
         if context.scene.selected_main_object:
@@ -233,15 +229,14 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         
         if main_obj and hasattr(main_obj, 'vertex_groups'):
             has_loads = False
-            # Mostrar todos los vertex groups que terminen con _load
+
             for vgroup in main_obj.vertex_groups:
                 if vgroup.name.endswith("_load"):
                     has_loads = True
                     
-                    # Sección principal para el nombre de la carga y su selección
+
                     row = box_loads.row(align=True)
-                    
-                    # Determinar si esta carga está activa
+
                     is_active = (context.scene.current_load_group == vgroup.name)
                     if is_active:
                         op = row.operator("view3d.select_load_group", 
@@ -253,25 +248,23 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
                                          text=vgroup.name, 
                                          icon='FORCE_MAGNETIC')
                     op.group_name = vgroup.name
-                    
-                    # Botón para eliminar la carga
+
                     delete_op = row.operator("view3d.delete_load_group", text="", icon='X')
                     delete_op.group_name = vgroup.name
                     
-                    # Si la carga está seleccionada, mostrar campos para editar sus valores
+
                     if is_active and "load_attributes" in main_obj and vgroup.name in main_obj["load_attributes"]:
                         attrs = main_obj["load_attributes"][vgroup.name]
                         
-                        # Propiedades de carga para edición
+
                         load_box = box_loads.box()
                         
-                        # Mostrar y permitir editar los valores de carga
                         row = load_box.row(align=True)
                         row.prop(context.scene, "edit_load_x", text="X")
                         row.prop(context.scene, "edit_load_y", text="Y") 
                         row.prop(context.scene, "edit_load_z", text="Z")
                         
-                        # Botón para aplicar los cambios
+
                         row = load_box.row(align=True)
                         row.operator("view3d.update_load_attributes", text="Update Load Values", icon='CHECKMARK')
                         
@@ -285,7 +278,7 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         box = layout.box()
         box.label(text="Visual elements")
 
-        # Checkbox: Show Constraint Points y Show Contact Points
+        # Checkbox: Show Constraint Points and Show Contact Points
         row = box.row()
         row.prop(context.scene, "show_constraint_points", text="Show Constraint Points")
         row.prop(context.scene, "show_contact_points", text="Show Contact Points")
@@ -314,22 +307,3 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         col2.operator("view3d.export_meshes", text="Export files", icon='EXPORT')
         col2.operator("view3d.run_fossils", text="Run Fossils", icon='PLAY')
         col2.operator("view3d.open_fea_results_folder", text="Open FEA Results Folder", icon='FILE_FOLDER')
-
-
-        # Export for Sensitivity Analysis Section
-        # box = layout.box()
-        # box.label(text="Export for Sensitivity Analysis")
-        # row = box.row()
-        # row.prop(context.scene, "sample_name", text="Sample name", icon='GREASEPENCIL')
-        # split = box.split(factor=0.5)
-        # col1 = split.column(align=True)
-        # col2 = split.column(align=True)
-
-        # col1.operator("view3d.start_selection", text="Start Selection", icon='RESTRICT_SELECT_OFF')
-        # col2.operator("view3d.submit_sample", text="Submit Sample", icon='EXPORT')
-        # row = box.row()
-        # row.prop(context.scene, "scale_factor", text="Scale Factor")
-        # row.prop(context.scene, "total_faces", text="Number of faces")
-        # row = box.row()
-        # row.operator("view3d.export_sensitivity_analysis", text="Export for Sensitivity Analysis")
-

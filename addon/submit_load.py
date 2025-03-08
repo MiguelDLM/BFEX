@@ -33,10 +33,10 @@ class View3D_OT_Submit_load(Operator):
             bpy.ops.object.mode_set(mode='EDIT')
             return {'CANCELLED'}
     
-        # Crear un nuevo vertex group
+        # Create vertex group
         vertex_group_name = f"{context.scene.load_name.strip()}_load"
         
-        # Comprobar si ya existe un grupo con este nombre
+        # Check if vertex group already exists
         if vertex_group_name in active_object.vertex_groups:
             self.report({'ERROR'}, f"Load name '{context.scene.load_name.strip()}' already exists. Please use a different name.")
             bpy.ops.object.mode_set(mode='EDIT')
@@ -44,19 +44,19 @@ class View3D_OT_Submit_load(Operator):
             
         vertex_group = active_object.vertex_groups.new(name=vertex_group_name)
     
-        # Agregar los vértices seleccionados al vertex group
+        # Add selected vertices to the group
         for vertex_index in selected_vertices_indices:
             vertex_group.add([vertex_index], 1.0, 'ADD')
     
         num_vertices = len(selected_vertices_indices)
 
-        # Calcular valores de carga
+        # Calculate load values
         if context.scene.load_input_method == 'VERTICES':
-            # Obtener la posición del vértice seleccionado y punto focal
+            # Get the selected vertex position
             selected_vertex = mesh.vertices[selected_vertices_indices[0]]
             selected_vertex_position = active_object.matrix_world @ selected_vertex.co.copy()
             
-            # Asegurar que hay un punto focal definido
+            # Get the focal point
             if not hasattr(context.scene, 'loads_focal') or context.scene.loads_focal == "":
                 self.report({'ERROR'}, "No focal point defined. Select a focal point first.")
                 bpy.ops.object.mode_set(mode='EDIT')
@@ -81,11 +81,11 @@ class View3D_OT_Submit_load(Operator):
             bpy.ops.object.mode_set(mode='EDIT')
             return {'CANCELLED'}
         
-        # Almacenar los valores de carga como propiedades personalizadas
+        # Store load properties in the object
         if "load_attributes" not in active_object:
             active_object["load_attributes"] = {}
             
-        # Crear entrada para este grupo de carga
+        # Create a dictionary with the load properties
         active_object["load_attributes"][vertex_group_name] = {
             "load_x": adjusted_load_x,
             "load_y": adjusted_load_y,
@@ -95,33 +95,33 @@ class View3D_OT_Submit_load(Operator):
             "method": context.scene.load_input_method
         }
         
-        # También guardar las propiedades como atributos de vértice para visualización
+        # Add load attributes to the mesh 
         load_attrs = ["load_x", "load_y", "load_z"]
         try:
-            # Crear atributos si no existen
+            # Create or access the vertex attributes dictionary
             for attr_name in load_attrs:
                 if attr_name not in mesh.attributes:
                     mesh.attributes.new(attr_name, 'FLOAT', 'POINT')
                     
-                    # Inicializar todos los valores a 0.0
+                    # Initialize the attribute for all vertices
                     for i in range(len(mesh.vertices)):
                         try:
                             mesh.attributes[attr_name].data[i].value = 0.0
                         except IndexError:
-                            # Solo reportar el error y continuar
-                            print(f"Advertencia: No se pudo inicializar {attr_name} para vértice {i}")
+                            # This can happen if the mesh has more vertices than the attribute
+                            print(f"Warning: Mesh has more vertices than the attribute '{attr_name}'")
                     
-            # Asignar valores a los vértices seleccionados
+            # Assign the load values to the selected vertices
             for vertex_index in selected_vertices_indices:
                 mesh.attributes["load_x"].data[vertex_index].value = adjusted_load_x
                 mesh.attributes["load_y"].data[vertex_index].value = adjusted_load_y
                 mesh.attributes["load_z"].data[vertex_index].value = adjusted_load_z
                 
         except Exception as e:
-            self.report({'WARNING'}, f"Advertencia: No se pudieron crear algunos atributos de vértice: {str(e)}")
-            # Continuamos porque las propiedades principales están en el objeto
+            self.report({'WARNING'}, f"Warning: Could not update some attributes: {str(e)}")
+
         
-        # Volver al modo edición
+        # Return to edit mode
         bpy.ops.object.mode_set(mode='EDIT')
         
         self.report({'INFO'}, f"Created load '{vertex_group_name}' with {num_vertices} vertices")

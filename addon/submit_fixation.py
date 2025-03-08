@@ -93,25 +93,24 @@ class VIEW3D_OT_SubmitFixationPointOperator(Operator):
         
         self.report({'INFO'}, f"Created fixation group '{group_name}' with {len(selected_verts)} vertices")
         
-        # Almacenar valores como propiedades personalizadas del grupo de vértices
-        # Crear un diccionario de propiedades si no existe
+        # Store fixation attributes in the object
         if "fixation_attributes" not in obj:
             obj["fixation_attributes"] = {}
             
-        # Acceder al diccionario
+        # Access the fixation attributes dictionary
         fixation_attrs = obj["fixation_attributes"]
         
-        # Crear o actualizar la entrada para este grupo
+        # Create or update the fixation attributes for the group
         fixation_attrs[group_name] = {
             "fixation_x": context.scene.fixation_x,
             "fixation_y": context.scene.fixation_y,
             "fixation_z": context.scene.fixation_z
         }
             
-        # Guardar de vuelta en el objeto
+        # Store the updated attributes
         obj["fixation_attributes"] = fixation_attrs
         
-        # Forzar actualización de la UI para mantener el resaltado
+        # Force a redraw of the 3D view
         for area in context.screen.areas:
             if area.type == 'VIEW_3D':
                 area.tag_redraw()

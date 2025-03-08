@@ -15,24 +15,17 @@ from mathutils import Vector, kdtree
 from .menu import VIEW3D_PT_BFEXMenu_PT, VIEW3D_OT_UpdateLoadingScenario
 from .browse_folder import VIEW3D_OT_BrowseFolderOperator
 from .create_folder_and_collection import VIEW3D_OT_CreateFolderOperator
-from .submit_main_object import VIEW3D_OT_SubmitMainObjectOperator
 from .start_selection import VIEW3D_OT_StartSelectionOperator
 from .submit_selection import VIEW3D_OT_SubmitSelectionOperator
 from .select_vertex import VIEW3D_OT_SelectVertexOperator
 from .select_focal_point import VIEW3D_OT_SelectFocalPointOperator
 from .submit_focal import VIEW3D_OT_SubmitFocalPointOperator
-from .submit_parameters import VIEW3D_OT_SubmitParametersOperator
-from .refresh_parameters import VIEW3D_OT_RefreshParametersOperator
 from .submit_fixation import VIEW3D_OT_SubmitFixationPointOperator
 from .export_meshes import VIEW3D_OT_ExportMeshesOperator
 from .run_fossils import VIEW3D_OT_RunFossilsOperator, VIEW3D_OT_OpenFEAResultsFolderOperator
 from .visual_elements import VIEW3D_OT_VisualElementsOperator
-from .submit_sample import VIEW3D_OT_SubmitSampleOperator
-from .sensitivity_analysis import VIEW3D_OT_ExportSensitivityAnalysisOperator
 from .fixations_edition import VIEW3D_OT_SelectFixationGroup, VIEW3D_OT_DeleteFixationGroup, VIEW3D_OT_UpdateFixationAttributes
-from .refresh_fixations import View3D_OT_Refresh_FixationsOperator
 from .submit_load import View3D_OT_Submit_load
-from .refresh_loads import VIEW3D_OT_RefreshLoadsOperator   
 from .submit_focal_load import View3D_OT_SubmitFocalLoad
 from .update_loading_scenario import VIEW3D_OT_UpdateLoadingScenario
 from .loads_edition import VIEW3D_OT_SelectLoadGroup, VIEW3D_OT_DeleteLoadGroup, VIEW3D_OT_UpdateLoadAttributes
@@ -76,25 +69,18 @@ def register():
     bpy.utils.register_class(VIEW3D_PT_BFEXMenu_PT)
     bpy.utils.register_class(VIEW3D_OT_BrowseFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_CreateFolderOperator)
-    bpy.utils.register_class(VIEW3D_OT_SubmitMainObjectOperator)
     bpy.utils.register_class(VIEW3D_OT_StartSelectionOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitSelectionOperator)
     bpy.utils.register_class(VIEW3D_OT_SelectVertexOperator)
     bpy.utils.register_class(VIEW3D_OT_SelectFocalPointOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitFocalPointOperator)
-    bpy.utils.register_class(VIEW3D_OT_SubmitParametersOperator)
-    bpy.utils.register_class(VIEW3D_OT_RefreshParametersOperator)
     bpy.utils.register_class(VIEW3D_OT_SubmitFixationPointOperator)
     bpy.utils.register_class(VIEW3D_OT_ExportMeshesOperator)
     bpy.utils.register_class(VIEW3D_OT_RunFossilsOperator)
     bpy.utils.register_class(VIEW3D_OT_OpenFEAResultsFolderOperator)
     bpy.utils.register_class(VIEW3D_OT_VisualElementsOperator)
-    bpy.utils.register_class(VIEW3D_OT_SubmitSampleOperator)
-    bpy.utils.register_class(VIEW3D_OT_ExportSensitivityAnalysisOperator)
-    bpy.utils.register_class(View3D_OT_Refresh_FixationsOperator)
     bpy.utils.register_class(View3D_OT_Submit_load)
     bpy.utils.register_class(View3D_OT_SubmitFocalLoad)
-    bpy.utils.register_class(VIEW3D_OT_RefreshLoadsOperator)
     bpy.utils.register_class(VIEW3D_OT_UpdateLoadingScenario)
     bpy.utils.register_class(VIEW3D_OT_DeleteFixationGroup)
     bpy.utils.register_class(VIEW3D_OT_SelectFixationGroup)
@@ -140,26 +126,19 @@ def register():
         description="Reference object to be used for the FEA model"
     )
 
-    bpy.types.Scene.muscle_created = bpy.props.BoolProperty(
-        name="Muscle Created",
-        default=False,
-        description="Flag to check if muscle is created"
-    )
-
+    
+    def update_selected_muscle(self, context):
+        """Callback que se ejecuta cuando selected_muscle cambia"""
+        selected_muscle = context.scene.selected_muscle
+        if selected_muscle and "Loading scenario" in selected_muscle:
+            context.scene.selected_option = selected_muscle["Loading scenario"]
+    
+    # Modificar la definición de selected_muscle para incluir el callback
     bpy.types.Scene.selected_muscle = bpy.props.PointerProperty(
-        name="Selected Muscle",
         type=bpy.types.Object,
-        description="Selected muscle object"
-    )
-
-    bpy.types.Scene.muscle_parameters = bpy.props.StringProperty(
-        name="Muscle Parameters",
-        description="Parameters for muscles in a specific format"
-    )
-
-    bpy.types.Scene.fixations = bpy.props.StringProperty(
-        name="Fixations",
-        description="Fixations for the model in a specific format"
+        name="Selected Muscle",
+        description="Currently selected muscle for editing",
+        update=update_selected_muscle
     )
 
     bpy.types.Scene.fixation_x = bpy.props.BoolProperty(
@@ -381,11 +360,7 @@ def register():
             default=0.0,
             description="Load force value",
         )
-    bpy.types.Scene.loads = bpy.props.StringProperty(
 
-        name="Loads",
-        description="Loads for the model in a specific format"
-    )
     bpy.types.Scene.loads_focal = bpy.props.StringProperty(
         name="Loads Focal",
         description="Loads for the model in a specific format"
@@ -432,20 +407,13 @@ def unregister():
         VIEW3D_OT_ExportMeshesOperator,
         VIEW3D_OT_SelectFocalPointOperator,
         VIEW3D_OT_SubmitFocalPointOperator,
-        VIEW3D_OT_SubmitParametersOperator,
         VIEW3D_OT_SubmitFixationPointOperator,
-        VIEW3D_OT_SubmitMainObjectOperator,
-        VIEW3D_OT_RefreshParametersOperator,
         VIEW3D_OT_RunFossilsOperator,
         VIEW3D_OT_OpenFEAResultsFolderOperator,
         VIEW3D_OT_VisualElementsOperator,
-        VIEW3D_OT_ExportSensitivityAnalysisOperator,
-        VIEW3D_OT_SubmitSampleOperator,
         VIEW3D_OT_SelectVertexOperator,
-        View3D_OT_Refresh_FixationsOperator,
         View3D_OT_Submit_load,
         View3D_OT_SubmitFocalLoad,
-        VIEW3D_OT_RefreshLoadsOperator,
         VIEW3D_OT_UpdateLoadingScenario,
         VIEW3D_OT_DeleteFixationGroup,
         VIEW3D_OT_SelectFixationGroup,
@@ -480,8 +448,6 @@ def unregister():
         "show_attachment_areas",
         "show_force_directions",
         "selected_main_object",
-        "muscle_parameters",
-        "fixations",
         "fixation_type",
         "fixation_point_coordinates",
         "youngs_modulus",
@@ -492,7 +458,12 @@ def unregister():
         "load_input_method",
         "selected_reference_object",
         "selected_muscle",
-        "muscle_created"
+        "edit_load_x",
+        "edit_load_y",
+        "edit_load_z",
+        "current_load_group",
+        "current_fixation_group",
+        "arrow_size"
     ]
     
     for prop in properties:
