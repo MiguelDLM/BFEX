@@ -49,16 +49,16 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
             self.report({'ERROR'}, f"Failed to set object mode: {str(e)}")
             return {'CANCELLED'}
 
-        # Check if vertex group already exists
-        vgroup = bpy.context.active_object.vertex_groups.get(submesh_name)
-        if vgroup is not None:
-            # If it exists, remove it
-            bpy.context.active_object.vertex_groups.remove(vgroup)
+        # # Check if vertex group already exists
+        # vgroup = bpy.context.active_object.vertex_groups.get(submesh_name)
+        # if vgroup is not None:
+        #     # If it exists, remove it
+        #     bpy.context.active_object.vertex_groups.remove(vgroup)
 
-        # Create vertex group
-        vgroup = bpy.context.active_object.vertex_groups.new(name=submesh_name)
-        selected_vertices = [v.index for v in bpy.context.active_object.data.vertices if v.select]
-        vgroup.add(selected_vertices, 1.0, 'REPLACE')
+        # # Create vertex group
+        # vgroup = bpy.context.active_object.vertex_groups.new(name=submesh_name)
+        # selected_vertices = [v.index for v in bpy.context.active_object.data.vertices if v.select]
+        # vgroup.add(selected_vertices, 1.0, 'REPLACE')
 
         bpy.ops.object.select_all(action='DESELECT')
         bpy.context.view_layer.objects.active = bpy.context.active_object
@@ -94,7 +94,6 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
 
                 # Rename mesh
                 bpy.context.active_object.name = submesh_name
-
 
                 # Delete duplicated mesh
                 original_collection = bpy.context.active_object.users_collection[0]

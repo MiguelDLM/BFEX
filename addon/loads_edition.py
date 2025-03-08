@@ -19,23 +19,23 @@ class VIEW3D_OT_SelectLoadGroup(Operator):
             obj = bpy.data.objects.get(obj)
         
         if obj and hasattr(obj, 'vertex_groups') and self.group_name in obj.vertex_groups:
-            # Seleccionar el grupo de vértices
+            # Select the object
             bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.select_all(action='DESELECT')
             obj.select_set(True)
             context.view_layer.objects.active = obj
             
-            # Cambiar a modo edición
+            # Change to edit mode
             bpy.ops.object.mode_set(mode='EDIT')
             bpy.ops.mesh.select_all(action='DESELECT')
             
-            # Activar el grupo de vértices
+            # Activate the vertex group
             obj.vertex_groups.active_index = obj.vertex_groups[self.group_name].index
             
-            # Seleccionar el grupo de vértices
+            # Select vertices in the group
             bpy.ops.object.vertex_group_select()
             
-            # Obtener atributos de carga desde propiedades personalizadas
+            # Get the load attributes if they exist
             if "load_attributes" in obj and self.group_name in obj["load_attributes"]:
                 attrs = obj["load_attributes"][self.group_name]
                 context.scene.edit_load_x = attrs.get("load_x", 0.0)
@@ -46,10 +46,10 @@ class VIEW3D_OT_SelectLoadGroup(Operator):
                 context.scene.edit_load_y = 0.0
                 context.scene.edit_load_z = 0.0
             
-            # Guardar el grupo actual seleccionado
+            # Store the selected group
             context.scene.current_load_group = self.group_name
             
-            # Forzar actualización de la UI
+            # Force redraw
             for area in context.screen.areas:
                 if area.type == 'VIEW_3D':
                     area.tag_redraw()
@@ -77,18 +77,18 @@ class VIEW3D_OT_DeleteLoadGroup(Operator):
             obj = bpy.data.objects.get(obj)
         
         if obj and hasattr(obj, 'vertex_groups') and self.group_name in obj.vertex_groups:
-            # Eliminar el grupo de vértices
+            # Delete the vertex group
             vgroup = obj.vertex_groups[self.group_name]
             obj.vertex_groups.remove(vgroup)
             
-            # Eliminar también los atributos si existen
+            # Delete the load attributes if they exist
             if "load_attributes" in obj and self.group_name in obj["load_attributes"]:
                 load_attrs = obj["load_attributes"]
                 if self.group_name in load_attrs:
                     del load_attrs[self.group_name]
                     obj["load_attributes"] = load_attrs
             
-            # Limpiar la referencia al grupo actual si era este
+            # Clear the current load group if it was the one deleted
             if context.scene.current_load_group == self.group_name:
                 context.scene.current_load_group = ""
                 
@@ -116,16 +116,16 @@ class VIEW3D_OT_UpdateLoadAttributes(Operator):
             self.report({'ERROR'}, "No valid object selected")
             return {'CANCELLED'}
             
-        # Verificar que el grupo existe
+        # Verify that the load group exists
         if context.scene.current_load_group not in obj.vertex_groups:
             self.report({'ERROR'}, f"Load group {context.scene.current_load_group} not found")
             return {'CANCELLED'}
             
-        # Actualizar valores de carga
+        # Update the load attributes
         group_name = context.scene.current_load_group
         mesh = obj.data
         
-        # Crear o acceder al diccionario de atributos
+        # Create the load attributes dictionary if it doesn't exist
         if "load_attributes" not in obj:
             obj["load_attributes"] = {}
             
@@ -138,21 +138,20 @@ class VIEW3D_OT_UpdateLoadAttributes(Operator):
         load_attrs["load_y"] = context.scene.edit_load_y
         load_attrs["load_z"] = context.scene.edit_load_z
         
-        # Actualizar fuerza total
+        # Update the total force
         total_force = (context.scene.edit_load_x**2 + context.scene.edit_load_y**2 + context.scene.edit_load_z**2)**0.5
         load_attrs["total_force"] = total_force
         
-        # Guardar de vuelta
+        # Update the load method
         obj["load_attributes"][group_name] = load_attrs
         
-        # También actualizar atributos de vértice si existen
         try:
-            # Obtener índices de vértices en el grupo
+            # Get the selected vertices
             bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.vertex_group_select()
             selected_vertices_indices = [v.index for v in mesh.vertices if v.select]
             
-            # Actualizar atributos
+            # Update the load values
             if "load_x" in mesh.attributes:
                 for idx in selected_vertices_indices:
                     mesh.attributes["load_x"].data[idx].value = context.scene.edit_load_x
@@ -165,11 +164,11 @@ class VIEW3D_OT_UpdateLoadAttributes(Operator):
                 for idx in selected_vertices_indices:
                     mesh.attributes["load_z"].data[idx].value = context.scene.edit_load_z
                     
-            # Volver a modo edición
+            # Return to edit mode
             bpy.ops.object.mode_set(mode='EDIT')
             
         except Exception as e:
-            self.report({'WARNING'}, f"Advertencia: No se pudieron actualizar algunos atributos: {str(e)}")
+            self.report({'WARNING'}, f"Warning: Could not update some attributes: {str(e)}")
         
         self.report({'INFO'}, f"Updated load values for {group_name}")
         return {'FINISHED'}
