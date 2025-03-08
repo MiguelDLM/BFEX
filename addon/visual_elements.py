@@ -116,42 +116,35 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                         else:
                             obj.data.materials.append(new_material)
         
-        # Mostrar direcciones de fuerza (usando selección de músculos)
+        # Mostrar direcciones de fuerza (usando músculos)
         if context.scene.show_force_directions:
             attachment_collection = bpy.data.collections.get(context.scene.new_folder_name)
             if attachment_collection:
                 for muscle_obj in attachment_collection.objects:
-                    if "Focal point" in muscle_obj:
+                    if muscle_obj != main_object and "Focal point" in muscle_obj and "Force" in muscle_obj:
                         try:
                             # Obtener punto focal desde las propiedades personalizadas
                             focal_point_str = muscle_obj["Focal point"]
                             focal_coords = focal_point_str.split(',')
                             focal_point = Vector([float(coord) for coord in focal_coords])
                             
-                            # Obtener el grupo de vértices correspondiente
-                            muscle_name = muscle_obj.name
-                            if muscle_name in main_object.vertex_groups:
-                                vg = main_object.vertex_groups[muscle_name]
-                                vertices = [v.co for v in main_object.data.vertices 
-                                           if vg.index in [g.group for g in v.groups]]
-                                
-                                if vertices:
-                                    centroid = sum(vertices, Vector()) / len(vertices)
-                                    centroid_global = main_object.matrix_world @ centroid
-                                    direction = (focal_point - centroid_global).normalized()
-                                    orientation = (direction.x, direction.y, direction.z)
-                                    
-                                    self.create_combined_object_at_location(
-                                        focal_point, 
-                                        visual_elements_collection, 
-                                        f"ForceDirection_{muscle_name}", 
-                                        orientation=orientation, 
-                                        material=blue_material
-                                    )
-                                else:
-                                    self.report({'WARNING'}, f"No vertices found in muscle group: {muscle_name}")
-                            else:
-                                self.report({'WARNING'}, f"Muscle group not found: {muscle_name}")
+                            # Crear un punto para representar el centro del músculo
+                            # Usar el centro del objeto en lugar de buscar un grupo de vértices
+                            muscle_center = muscle_obj.matrix_world @ Vector((0, 0, 0))
+                            
+                            # Calcular dirección desde el centro del músculo hacia el punto focal
+                            direction = (focal_point - muscle_center).normalized()
+                            orientation = (direction.x, direction.y, direction.z)
+                            
+                            # Crear flecha para visualizar la dirección de la fuerza
+                            self.create_combined_object_at_location(
+                                focal_point, 
+                                visual_elements_collection, 
+                                f"ForceDirection_{muscle_obj.name}", 
+                                orientation=orientation, 
+                                material=blue_material
+                            )
+                            
                         except Exception as e:
                             self.report({'ERROR'}, f"Error processing muscle {muscle_obj.name}: {str(e)}")
             else:

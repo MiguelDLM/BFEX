@@ -46,12 +46,10 @@ Ensure your mesh is free of errors by utilizing the 3D print add-on and clicking
    - Click "Create New Folder" to establish a new folder and collection with the provided name.
 
 2. **Main Mesh Selection:**
-   - In Object mode, select the main mesh/bone for FEA.
-   - Click "Submit Main Bone for FEA."
+   - Select an object to be used as the main bone/mesh.
 
 3. **Muscle Attachment Surface Creation:**
    - Type the name of the muscle/sub-mesh to be subtracted.
-   - In Object mode, select the main bone/object.
    - Click "Start Selection" to enter Edit mode and activate the lasso selection tool.
    - Select surfaces for extraction and click "Submit Selection" to create a new sub-mesh in the collection.
 
@@ -62,15 +60,8 @@ Ensure your mesh is free of errors by utilizing the 3D print add-on and clicking
 5. **Input Force and Loading Scenario:**
    - Enter the force applied by the muscle and select the loading scenario (Uniform, Tangential, or Tangential plus Normal Traction).
 
-6. **Parameter Submission:**
-   - Click "Submit Parameters" to store all values (file name, focal point, force, and loading scenario) in a JSON dictionary.
-     Note: The stored parameters are displayed in Blender's console. Check regularly to ensure the data is being stored correctly.
-
-7. **Undo Last Submission:**
-   - If a mistake is made, delete the focal point created on the "Focal points" collection and click "Refresh parameters list" to update the list.
-
-8. **Repeat for Multiple Muscles:**
-   - Repeat steps 3 to 7 for each muscle to be modeled.
+6. **Repeat for Multiple Muscles:**
+   - Repeat steps 3 to 5 for each muscle to be modeled.
 
 9. **Contact and Constraint Points:**
    - Click "Select Contact Points" to switch to Edit mode and select vertices where loading forces will be applied.
