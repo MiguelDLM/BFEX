@@ -108,9 +108,10 @@ class VIEW3D_OT_SubmitSelectionOperator(Operator):
                 bpy.context.active_object["Focal point"] = "0.0,0.0,0.0"  # Format as float coordinates
                 bpy.context.active_object["Loading scenario"] = "T+N"      # Default enum option
                 bpy.context.active_object["Force"] = 0.0                   # Float value, not string
-            
 
-                context.scene.muscle_created = True
+                # set origin to geometry
+                bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+                
                 context.scene.selected_muscle = bpy.context.active_object
 
                 self.report({'INFO'}, f"Submesh '{submesh_name}' created and added to collection '{collection_name}'")
