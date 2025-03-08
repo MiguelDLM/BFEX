@@ -12,7 +12,7 @@ import mathutils
 import random
 from mathutils import Vector, kdtree
 
-from .menu import VIEW3D_PT_BFEXMenu_PT, VIEW3D_OT_SelectFixationGroup, VIEW3D_OT_DeleteFixationGroup, VIEW3D_OT_UpdateLoadingScenario, VIEW3D_OT_UpdateFixationAttributes
+from .menu import VIEW3D_PT_BFEXMenu_PT, VIEW3D_OT_UpdateLoadingScenario
 from .browse_folder import VIEW3D_OT_BrowseFolderOperator
 from .create_folder_and_collection import VIEW3D_OT_CreateFolderOperator
 from .submit_main_object import VIEW3D_OT_SubmitMainObjectOperator
@@ -29,11 +29,13 @@ from .run_fossils import VIEW3D_OT_RunFossilsOperator, VIEW3D_OT_OpenFEAResultsF
 from .visual_elements import VIEW3D_OT_VisualElementsOperator
 from .submit_sample import VIEW3D_OT_SubmitSampleOperator
 from .sensitivity_analysis import VIEW3D_OT_ExportSensitivityAnalysisOperator
+from .fixations_edition import VIEW3D_OT_SelectFixationGroup, VIEW3D_OT_DeleteFixationGroup, VIEW3D_OT_UpdateFixationAttributes
 from .refresh_fixations import View3D_OT_Refresh_FixationsOperator
 from .submit_load import View3D_OT_Submit_load
 from .refresh_loads import VIEW3D_OT_RefreshLoadsOperator   
 from .submit_focal_load import View3D_OT_SubmitFocalLoad
 from .update_loading_scenario import VIEW3D_OT_UpdateLoadingScenario
+from .loads_edition import VIEW3D_OT_SelectLoadGroup, VIEW3D_OT_DeleteLoadGroup, VIEW3D_OT_UpdateLoadAttributes
 
 class BFEXPreferences(AddonPreferences):
     bl_idname = __name__
@@ -97,6 +99,9 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_DeleteFixationGroup)
     bpy.utils.register_class(VIEW3D_OT_SelectFixationGroup)
     bpy.utils.register_class(VIEW3D_OT_UpdateFixationAttributes)
+    bpy.utils.register_class(VIEW3D_OT_UpdateLoadAttributes)
+    bpy.utils.register_class(VIEW3D_OT_DeleteLoadGroup)
+    bpy.utils.register_class(VIEW3D_OT_SelectLoadGroup)
     
     
 
@@ -386,6 +391,29 @@ def register():
         description="Loads for the model in a specific format"
     )
 
+    bpy.types.Scene.current_load_group = bpy.props.StringProperty(
+        name="Current Load Group",
+        description="Currently selected load group"
+    )
+    
+    bpy.types.Scene.edit_load_x = bpy.props.FloatProperty(
+        name="Load X",
+        description="Load force in X direction",
+        default=0.0
+    )
+    
+    bpy.types.Scene.edit_load_y = bpy.props.FloatProperty(
+        name="Load Y",
+        description="Load force in Y direction",
+        default=0.0
+    )
+    
+    bpy.types.Scene.edit_load_z = bpy.props.FloatProperty(
+        name="Load Z",
+        description="Load force in Z direction",
+        default=0.0
+    )
+
     bpy.types.Scene.arrows_size = bpy.props.FloatProperty(
         name="Arrows Size",
         default=1,
@@ -421,7 +449,11 @@ def unregister():
         VIEW3D_OT_UpdateLoadingScenario,
         VIEW3D_OT_DeleteFixationGroup,
         VIEW3D_OT_SelectFixationGroup,
-        VIEW3D_OT_UpdateFixationAttributes
+        VIEW3D_OT_UpdateFixationAttributes,
+        VIEW3D_OT_SelectLoadGroup,
+        VIEW3D_OT_DeleteLoadGroup,
+        VIEW3D_OT_UpdateLoadAttributes
+
     ]
     
     for cls in classes:

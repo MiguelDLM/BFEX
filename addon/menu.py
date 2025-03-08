@@ -117,16 +117,17 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         row = box.row()
         row.operator("view3d.submit_fixation_point", text="Submit fixation Point", icon='EXPORT')
 
+        # Reemplaza la sección de Fixation Groups existente por este código
+        
         box_groups = box.box()
         box_groups.label(text="Fixation Groups")
-
+        
         main_obj = None
         if context.scene.selected_main_object:
             if isinstance(context.scene.selected_main_object, str):
                 main_obj = bpy.data.objects.get(context.scene.selected_main_object)
             else:
                 main_obj = context.scene.selected_main_object
-
         
         if main_obj and hasattr(main_obj, 'vertex_groups'):
             has_groups = False
@@ -152,20 +153,28 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
                     delete_op = row.operator("view3d.delete_fixation_group", text="", icon='X')
                     delete_op.group_name = vgroup.name
                     
+                    # Si el grupo está seleccionado, mostrar los checkboxes debajo
+                    if is_active and "fixation_attributes" in main_obj and vgroup.name in main_obj["fixation_attributes"]:
+                        attrs = main_obj["fixation_attributes"][vgroup.name]
+                        
+                        # Propiedades de fijación para edición
+                        fixation_box = box_groups.box()
+                        
+                        # Mostrar y permitir editar las restricciones por eje
+                        row = fixation_box.row(align=True)
+                        row.label(text="Select Axes:")
+                        row.prop(context.scene, "fixation_x", text="X")
+                        row.prop(context.scene, "fixation_y", text="Y")
+                        row.prop(context.scene, "fixation_z", text="Z")
+                        
+                        # Botón para aplicar los cambios
+                        row = fixation_box.row(align=True)
+                        row.operator("view3d.update_fixation_attributes", text="Update Fixation Axes", icon='CHECKMARK')
+                        
             if not has_groups:
                 box_groups.label(text="No fixation groups found")
         else:
             box_groups.label(text="No main object selected")
-        
-        # Select Axes Section for Contact Points (como estaba antes)
-        row = box.row(align=True)
-        row.label(text="Select Axes:")
-        row.prop(context.scene, "fixation_x", text="X")
-        row.prop(context.scene, "fixation_y", text="Y")
-        row.prop(context.scene, "fixation_z", text="Z")  
-        # Después de los checkboxes X, Y, Z
-        if context.scene.current_fixation_group:
-            row.operator("view3d.update_fixation_attributes", text="Apply", icon='CHECKMARK')
 
         # Material Properties Section
         box = layout.box()
@@ -210,10 +219,68 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
             row.operator("view3d.select_fixation_point", text="Select Load Faces", icon='RESTRICT_SELECT_OFF')
             row.operator("view3d.submit_load", text="Submit Load", icon='EXPORT')
             row = box.row()
-            row.operator("view3d.refresh_loads", text="Refresh loads list", icon='TRASH')
+        
+        # Existing Loads Section - Mostrar las cargas que ya existen
+        box_loads = box.box()
+        box_loads.label(text="Existing Loads")
+        
+        main_obj = None
+        if context.scene.selected_main_object:
+            if isinstance(context.scene.selected_main_object, str):
+                main_obj = bpy.data.objects.get(context.scene.selected_main_object)
+            else:
+                main_obj = context.scene.selected_main_object
+        
+        if main_obj and hasattr(main_obj, 'vertex_groups'):
+            has_loads = False
+            # Mostrar todos los vertex groups que terminen con _load
+            for vgroup in main_obj.vertex_groups:
+                if vgroup.name.endswith("_load"):
+                    has_loads = True
+                    
+                    # Sección principal para el nombre de la carga y su selección
+                    row = box_loads.row(align=True)
+                    
+                    # Determinar si esta carga está activa
+                    is_active = (context.scene.current_load_group == vgroup.name)
+                    if is_active:
+                        op = row.operator("view3d.select_load_group", 
+                                         text=vgroup.name, 
+                                         icon='FORCE_MAGNETIC',
+                                         depress=True) 
+                    else:
+                        op = row.operator("view3d.select_load_group", 
+                                         text=vgroup.name, 
+                                         icon='FORCE_MAGNETIC')
+                    op.group_name = vgroup.name
+                    
+                    # Botón para eliminar la carga
+                    delete_op = row.operator("view3d.delete_load_group", text="", icon='X')
+                    delete_op.group_name = vgroup.name
+                    
+                    # Si la carga está seleccionada, mostrar campos para editar sus valores
+                    if is_active and "load_attributes" in main_obj and vgroup.name in main_obj["load_attributes"]:
+                        attrs = main_obj["load_attributes"][vgroup.name]
+                        
+                        # Propiedades de carga para edición
+                        load_box = box_loads.box()
+                        
+                        # Mostrar y permitir editar los valores de carga
+                        row = load_box.row(align=True)
+                        row.prop(context.scene, "edit_load_x", text="X")
+                        row.prop(context.scene, "edit_load_y", text="Y") 
+                        row.prop(context.scene, "edit_load_z", text="Z")
+                        
+                        # Botón para aplicar los cambios
+                        row = load_box.row(align=True)
+                        row.operator("view3d.update_load_attributes", text="Update Load Values", icon='CHECKMARK')
+                        
+            if not has_loads:
+                box_loads.label(text="No loads created yet")
+        else:
+            box_loads.label(text="No main object selected")
+
             
-
-
         # Visual elements section
         box = layout.box()
         box.label(text="Visual elements")
@@ -266,153 +333,3 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         # row = box.row()
         # row.operator("view3d.export_sensitivity_analysis", text="Export for Sensitivity Analysis")
 
-import bpy
-from bpy.types import Operator
-from bpy.props import StringProperty, BoolProperty
-
-class VIEW3D_OT_SelectFixationGroup(Operator):
-    bl_idname = "view3d.select_fixation_group"
-    bl_label = "Select Fixation Group"
-    bl_description = "Select vertices in the specified fixation group"
-    
-    group_name: StringProperty(
-        name="Group Name",
-        description="Name of the vertex group to select"
-    )
-    
-    def execute(self, context):
-        obj = context.scene.selected_main_object
-        
-        # Verificar si obj es un string o un objeto
-        if isinstance(obj, str):
-            obj = bpy.data.objects.get(obj)
-        
-        if obj and hasattr(obj, 'vertex_groups') and self.group_name in obj.vertex_groups:
-            # Asegurarse que estamos seleccionando el objeto correcto
-            bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.ops.object.select_all(action='DESELECT')
-            obj.select_set(True)
-            context.view_layer.objects.active = obj
-            
-            # Cambiar a modo edición
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.select_all(action='DESELECT')
-            
-            # Activar el grupo de vértices
-            obj.vertex_groups.active_index = obj.vertex_groups[self.group_name].index
-            
-            # Seleccionar el grupo de vértices
-            bpy.ops.object.vertex_group_select()
-            
-            # Obtener atributos de fixation desde propiedades personalizadas
-            if "fixation_attributes" in obj and self.group_name in obj["fixation_attributes"]:
-                attrs = obj["fixation_attributes"][self.group_name]
-                context.scene.fixation_x = attrs.get("fixation_x", False)
-                context.scene.fixation_y = attrs.get("fixation_y", False)
-                context.scene.fixation_z = attrs.get("fixation_z", False)
-            else:
-                # Si no hay propiedades establecidas para este grupo, inicializar como False
-                context.scene.fixation_x = False
-                context.scene.fixation_y = False
-                context.scene.fixation_z = False
-            
-            # Guardar el grupo actual seleccionado
-            context.scene.current_fixation_group = self.group_name
-            
-            # Forzar actualización de la UI para mantener el resaltado
-            for area in context.screen.areas:
-                if area.type == 'VIEW_3D':
-                    area.tag_redraw()
-
-            # Imprimir los valores de los atributos para depuración
-            print("fixation_x:", context.scene.fixation_x, 
-                  "fixation_y:", context.scene.fixation_y, 
-                  "fixation_z:", context.scene.fixation_z)
-            
-            self.report({'INFO'}, f"Selected vertex group: {self.group_name}")
-        else:
-            self.report({'ERROR'}, f"Vertex group {self.group_name} not found")
-        
-        return {'FINISHED'}
-
-class VIEW3D_OT_DeleteFixationGroup(Operator):
-    bl_idname = "view3d.delete_fixation_group"
-    bl_label = "Delete Fixation Group"
-    bl_description = "Delete the specified fixation group"
-    
-    group_name: StringProperty(
-        name="Group Name",
-        description="Name of the vertex group to delete"
-    )
-    
-    def execute(self, context):
-        obj = context.scene.selected_main_object
-        
-        # Verificar si obj es un string o un objeto
-        if isinstance(obj, str):
-            obj = bpy.data.objects.get(obj)
-        
-        if obj and hasattr(obj, 'vertex_groups') and self.group_name in obj.vertex_groups:
-            # Eliminar el grupo de vértices
-            vgroup = obj.vertex_groups[self.group_name]
-            obj.vertex_groups.remove(vgroup)
-            
-            # Limpiar la referencia al grupo actual si era este
-            if context.scene.current_fixation_group == self.group_name:
-                context.scene.current_fixation_group = ""
-                
-            self.report({'INFO'}, f"Deleted vertex group: {self.group_name}")
-        else:
-            self.report({'ERROR'}, f"Vertex group {self.group_name} not found")
-        
-        return {'FINISHED'}
-
-class VIEW3D_OT_UpdateFixationAttributes(Operator):
-    bl_idname = "view3d.update_fixation_attributes"
-    bl_label = "Update Fixation Attributes"
-    bl_description = "Update fixation attributes for the current vertex group"
-    
-    def execute(self, context):
-        if not context.scene.current_fixation_group:
-            self.report({'ERROR'}, "No fixation group selected")
-            return {'CANCELLED'}
-            
-        obj = context.scene.selected_main_object
-        if isinstance(obj, str):
-            obj = bpy.data.objects.get(obj)
-            
-        if not obj or not hasattr(obj, 'vertex_groups'):
-            self.report({'ERROR'}, "No valid object selected")
-            return {'CANCELLED'}
-            
-        # Verificar que el grupo existe
-        if context.scene.current_fixation_group not in obj.vertex_groups:
-            self.report({'ERROR'}, f"Vertex group {context.scene.current_fixation_group} not found")
-            return {'CANCELLED'}
-        
-        # Almacenar valores como propiedades personalizadas del grupo de vértices
-        group_name = context.scene.current_fixation_group
-        
-        # Crear un diccionario de propiedades si no existe
-        if "fixation_attributes" not in obj:
-            obj["fixation_attributes"] = {}
-            
-        # Acceder al diccionario
-        fixation_attrs = obj["fixation_attributes"]
-        
-        # Crear o actualizar la entrada para este grupo
-        if group_name not in fixation_attrs:
-            fixation_attrs[group_name] = {}
-            
-        # Actualizar los valores para este grupo
-        fixation_attrs[group_name] = {
-            "fixation_x": context.scene.fixation_x,
-            "fixation_y": context.scene.fixation_y,
-            "fixation_z": context.scene.fixation_z
-        }
-            
-        # Guardar de vuelta en el objeto
-        obj["fixation_attributes"] = fixation_attrs
-        
-        self.report({'INFO'}, f"Updated attributes for group: {group_name}")
-        return {'FINISHED'}

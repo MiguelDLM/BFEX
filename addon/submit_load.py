@@ -9,7 +9,7 @@ import json
 class View3D_OT_Submit_load(Operator):
     bl_idname = "view3d.submit_load"
     bl_label = "Submit Load"
-    bl_description = "Stores the coordinates of the selected vertices in context.scene.loads."
+    bl_description = "Creates a vertex group with load properties for selected vertices"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -21,34 +21,27 @@ class View3D_OT_Submit_load(Operator):
 
     def execute(self, context):
         active_object = context.active_object
+        mesh = active_object.data
     
         if active_object.mode == 'EDIT':
             bpy.ops.object.mode_set(mode='OBJECT')
     
-        selected_vertices_indices = [v.index for v in active_object.data.vertices if v.select]
+        selected_vertices_indices = [v.index for v in mesh.vertices if v.select]
     
         if not selected_vertices_indices:
             self.report({'ERROR'}, "No vertices selected.")
+            bpy.ops.object.mode_set(mode='EDIT')
             return {'CANCELLED'}
-    
-        def get_transformed_coordinates(obj, coordinates):
-            matrix_world = obj.matrix_world
-            original_vector = mathutils.Vector(coordinates)
-            transformed_vector = matrix_world @ original_vector
-            return transformed_vector
-    
-        if not hasattr(context.scene, 'loads') or not context.scene.loads:
-            context.scene.loads = "[]"
-    
-        loads = json.loads(context.scene.loads)
-    
-        for load in loads:
-            if load['name'] == context.scene.load_name.strip():
-                self.report({'ERROR'}, "Load name already exists. Please assign a different name or press <refresh loads list> to update the existing load.")
-                return {'CANCELLED'}
     
         # Crear un nuevo vertex group
         vertex_group_name = f"{context.scene.load_name.strip()}_load"
+        
+        # Comprobar si ya existe un grupo con este nombre
+        if vertex_group_name in active_object.vertex_groups:
+            self.report({'ERROR'}, f"Load name '{context.scene.load_name.strip()}' already exists. Please use a different name.")
+            bpy.ops.object.mode_set(mode='EDIT')
+            return {'CANCELLED'}
+            
         vertex_group = active_object.vertex_groups.new(name=vertex_group_name)
     
         # Agregar los vértices seleccionados al vertex group
@@ -57,49 +50,79 @@ class View3D_OT_Submit_load(Operator):
     
         num_vertices = len(selected_vertices_indices)
 
+        # Calcular valores de carga
         if context.scene.load_input_method == 'VERTICES':
-
-            # Asumiendo que 'active_object', 'selected_vertices_indices', y 'context' están definidos
-            selected_vertex = active_object.data.vertices[selected_vertices_indices[0]]
-            selected_vertex_position = active_object.matrix_world @ selected_vertex.co.copy()  # Convertir a coordenadas globales
+            # Obtener la posición del vértice seleccionado y punto focal
+            selected_vertex = mesh.vertices[selected_vertices_indices[0]]
+            selected_vertex_position = active_object.matrix_world @ selected_vertex.co.copy()
+            
+            # Asegurar que hay un punto focal definido
+            if not hasattr(context.scene, 'loads_focal') or context.scene.loads_focal == "":
+                self.report({'ERROR'}, "No focal point defined. Select a focal point first.")
+                bpy.ops.object.mode_set(mode='EDIT')
+                return {'CANCELLED'}
+                
             focal_point_list = json.loads(context.scene.loads_focal)
             focal_point_position = mathutils.Vector(focal_point_list)
-            force_vector = focal_point_position - selected_vertex_position  # Vector desde el vértice al punto focal
-            force_direction = force_vector.normalized()  # Dirección de la fuerza
+            force_vector = focal_point_position - selected_vertex_position
+            force_direction = force_vector.normalized()
 
             total_force = context.scene.load_force
-            # No es necesario dividir la fuerza total por el número de vértices si la fuerza se aplica a un solo vértice
             adjusted_load_x = (force_direction.x * total_force) * -1
-            adjusted_load_y = (force_direction.y * total_force )
+            adjusted_load_y = (force_direction.y * total_force)
             adjusted_load_z = (force_direction.z * total_force) * -1
 
-
         elif context.scene.load_input_method == 'MANUAL':
-            
             adjusted_load_x = context.scene.load_x / num_vertices
             adjusted_load_y = context.scene.load_y / num_vertices
             adjusted_load_z = context.scene.load_z / num_vertices
-
         else:
             self.report({'ERROR'}, "Invalid load input method")
+            bpy.ops.object.mode_set(mode='EDIT')
             return {'CANCELLED'}
         
-        for vertex_index in selected_vertices_indices:
-            vertex_coordinates = active_object.data.vertices[vertex_index].co
-            transformed_coordinates = get_transformed_coordinates(active_object, vertex_coordinates)
-            load = {
-                'name': context.scene.load_name.strip(),
-                'nodes': [[transformed_coordinates.x, transformed_coordinates.y, transformed_coordinates.z]],
-                'values': [
-                    round(adjusted_load_x, 2), 
-                    round(adjusted_load_y, 2),
-                    round(adjusted_load_z, 2)  
-
-                ]
-            }
-            loads.append(load)
+        # Almacenar los valores de carga como propiedades personalizadas
+        if "load_attributes" not in active_object:
+            active_object["load_attributes"] = {}
+            
+        # Crear entrada para este grupo de carga
+        active_object["load_attributes"][vertex_group_name] = {
+            "load_x": adjusted_load_x,
+            "load_y": adjusted_load_y,
+            "load_z": adjusted_load_z,
+            "total_force": total_force if context.scene.load_input_method == 'VERTICES' else 
+                           (context.scene.load_x**2 + context.scene.load_y**2 + context.scene.load_z**2)**0.5,
+            "method": context.scene.load_input_method
+        }
         
-        context.scene.loads = json.dumps(loads, indent=4, separators=(',', ': '), ensure_ascii=False)
+        # También guardar las propiedades como atributos de vértice para visualización
+        load_attrs = ["load_x", "load_y", "load_z"]
+        try:
+            # Crear atributos si no existen
+            for attr_name in load_attrs:
+                if attr_name not in mesh.attributes:
+                    mesh.attributes.new(attr_name, 'FLOAT', 'POINT')
+                    
+                    # Inicializar todos los valores a 0.0
+                    for i in range(len(mesh.vertices)):
+                        try:
+                            mesh.attributes[attr_name].data[i].value = 0.0
+                        except IndexError:
+                            # Solo reportar el error y continuar
+                            print(f"Advertencia: No se pudo inicializar {attr_name} para vértice {i}")
+                    
+            # Asignar valores a los vértices seleccionados
+            for vertex_index in selected_vertices_indices:
+                mesh.attributes["load_x"].data[vertex_index].value = adjusted_load_x
+                mesh.attributes["load_y"].data[vertex_index].value = adjusted_load_y
+                mesh.attributes["load_z"].data[vertex_index].value = adjusted_load_z
+                
+        except Exception as e:
+            self.report({'WARNING'}, f"Advertencia: No se pudieron crear algunos atributos de vértice: {str(e)}")
+            # Continuamos porque las propiedades principales están en el objeto
         
-        self.report({'INFO'}, "Processed selected vertices, updated loads, and created vertex group. Loads: " + context.scene.loads)
+        # Volver al modo edición
+        bpy.ops.object.mode_set(mode='EDIT')
+        
+        self.report({'INFO'}, f"Created load '{vertex_group_name}' with {num_vertices} vertices")
         return {'FINISHED'}
