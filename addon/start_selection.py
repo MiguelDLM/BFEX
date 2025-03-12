@@ -16,7 +16,7 @@ class VIEW3D_OT_StartSelectionOperator(Operator):
         return bool(context.scene.selected_main_object)
 
     def execute(self, context):
-        active_object = bpy.data.objects.get(context.scene.selected_main_object)
+        active_object = context.scene.selected_main_object
         context.view_layer.objects.active = active_object
     
         # Ensure the active object is in 'OBJECT' mode before deselecting all

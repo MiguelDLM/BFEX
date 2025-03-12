@@ -1,6 +1,6 @@
-schema_version = "1.0.0"
+schema_version = "2.0.0"
 id = "BFEX"
-version = "1.0.0"
+version = "2.0.0"
 name = "Blender Finite Element eXporter"
 tagline = "An Add-on for Blender that export files for Finite Element Analysis in Fossils"
 maintainer = "Miguel Díaz de León <migueldlm1307@gmai.com>"

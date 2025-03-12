@@ -4,7 +4,6 @@
 import bpy
 import math
 import random
-import json
 from bpy.types import Operator
 from mathutils import Vector
 import bmesh
@@ -47,7 +46,6 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
             bpy.context.view_layer.objects.active = cone
             bpy.ops.object.join()
             
-
             if isinstance(orientation, str):
                 if orientation == 'DOWN':
                     cone.rotation_euler = (math.radians(90), 0, 0)
@@ -85,7 +83,6 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
 
             # scale the cone using the value in arrows_size property
             obj.scale = (bpy.context.scene.arrows_size, bpy.context.scene.arrows_size, bpy.context.scene.arrows_size)
-
     
             for old_collection in cone.users_collection:
                 if old_collection.name != "Visual elements":
@@ -101,11 +98,12 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
 
         visual_elements_collection = self.clear_or_init_collection("Visual elements")
         selected_main_object = context.scene.selected_main_object
-        main_object = bpy.data.objects.get(selected_main_object)
+        main_object = bpy.data.objects.get(selected_main_object) if isinstance(selected_main_object, str) else selected_main_object
         red_material = self.create_material("RedMaterial", (1, 0, 0, 1))
         yellow_material = self.create_material("YellowMaterial", (1, 1, 0, 1))
         blue_material = self.create_material("BlueMaterial", (0, 0, 1, 1))
 
+        # Mostrar áreas de fijación con colores aleatorios
         if context.scene.show_attachment_areas:
             attachment_collection = bpy.data.collections.get(context.scene.new_folder_name)
             if attachment_collection:
@@ -118,84 +116,123 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                         else:
                             obj.data.materials.append(new_material)
         
+        # Mostrar direcciones de fuerza (usando músculos)
         if context.scene.show_force_directions:
-            if "muscle_parameters" not in context.scene:
-                self.report({'WARNING'}, "Muscles not defined. Please define the muscles first.")
-            else:
-                muscle_parameters = json.loads(context.scene["muscle_parameters"])
-                for entry in muscle_parameters:
-                    # Obtener coordenadas de focalpt
-                    focal_point_coords = entry.get('focalpt', [])
-                    if isinstance(focal_point_coords, list):
-                        coords = focal_point_coords
-                    else:
-                        coords = [focal_point_coords.get('x', 0.0), focal_point_coords.get('y', 0.0), focal_point_coords.get('z', 0.0)]
-                        
-                    focal_point = Vector(coords)
-                    focal_point_name = entry.get('file', '').replace(f"f'{{path}}/", "").replace(".stl'", "")
-                    
-                    if focal_point_name in main_object.vertex_groups:
-                        vg = main_object.vertex_groups[focal_point_name]
-                        vertices = [v.co for v in main_object.data.vertices if vg.index in [g.group for g in v.groups]]
-                        
-                        if vertices:
-
-                            centroid = sum(vertices, Vector()) / len(vertices)
-                            centroid_global = main_object.matrix_world @ centroid
-                            direction = (focal_point - centroid_global).normalized()
-                            orientation = (direction.x, direction.y, direction.z)
-                        
-                            self.report({'INFO'}, f"Orientation: {orientation}")
+            attachment_collection = bpy.data.collections.get(context.scene.new_folder_name)
+            if attachment_collection:
+                for muscle_obj in attachment_collection.objects:
+                    if muscle_obj != main_object and "Focal point" in muscle_obj and "Force" in muscle_obj:
+                        try:
+                            # Obtener punto focal desde las propiedades personalizadas
+                            focal_point_str = muscle_obj["Focal point"]
+                            focal_coords = focal_point_str.split(',')
+                            focal_point = Vector([float(coord) for coord in focal_coords])
                             
-                            self.create_combined_object_at_location(focal_point, visual_elements_collection, f"ForceDirection_{focal_point_name}", orientation=orientation, material=blue_material)
-                        else:
-                            self.report({'WARNING'}, f"No vertices found in the group {focal_point_name}.")
-                    else:
-                        self.report({'WARNING'}, f"Vertex group {focal_point_name} not found in the main object.")
+                            # Crear un punto para representar el centro del músculo
+                            # Usar el centro del objeto en lugar de buscar un grupo de vértices
+                            muscle_center = muscle_obj.matrix_world @ Vector((0, 0, 0))
+                            
+                            # Calcular dirección desde el centro del músculo hacia el punto focal
+                            direction = (focal_point - muscle_center).normalized()
+                            orientation = (direction.x, direction.y, direction.z)
+                            
+                            # Crear flecha para visualizar la dirección de la fuerza
+                            self.create_combined_object_at_location(
+                                focal_point, 
+                                visual_elements_collection, 
+                                f"ForceDirection_{muscle_obj.name}", 
+                                orientation=orientation, 
+                                material=blue_material
+                            )
+                            
+                        except Exception as e:
+                            self.report({'ERROR'}, f"Error processing muscle {muscle_obj.name}: {str(e)}")
+            else:
+                self.report({'WARNING'}, "Attachment collection not found. Please define muscles first.")
 
-
+        # Mostrar puntos de contacto
         if main_object and context.scene.show_contact_points:
-            contact_point_groups = [group for group in main_object.vertex_groups if group.name.startswith("contact_point")]
-            for group in contact_point_groups:
-                vertices_indices = [v.index for v in main_object.data.vertices if group.index in [g.group for g in v.groups]]
-                vertex_coordinates_global = [main_object.matrix_world @ main_object.data.vertices[i].co for i in vertices_indices]
-                for coord in vertex_coordinates_global:
-                    self.create_combined_object_at_location(coord, visual_elements_collection, f"{group.name}", orientation='RIGHT', material=red_material)
+            for group in main_object.vertex_groups:
+                if group.name.startswith("contact_"):
+                    vertices_indices = [v.index for v in main_object.data.vertices 
+                                       if group.index in [g.group for g in v.groups]]
+                    vertex_coordinates_global = [main_object.matrix_world @ main_object.data.vertices[i].co 
+                                               for i in vertices_indices]
+                    
+                    # Verificar si hay información de ejes fijos
+                    has_x = has_y = has_z = False
+                    if "fixation_attributes" in main_object and group.name in main_object["fixation_attributes"]:
+                        attrs = main_object["fixation_attributes"][group.name]
+                        has_x = attrs.get("fixation_x", False)
+                        has_y = attrs.get("fixation_y", False)
+                        has_z = attrs.get("fixation_z", False)
+                    
+                    for coord in vertex_coordinates_global:
+                        self.create_combined_object_at_location(
+                            coord, 
+                            visual_elements_collection, 
+                            f"{group.name}{'_X' if has_x else ''}{'_Y' if has_y else ''}{'_Z' if has_z else ''}", 
+                            orientation='RIGHT', 
+                            material=red_material
+                        )
 
+        # Mostrar puntos de restricción
         if main_object and context.scene.show_constraint_points:
-            constraint_point_groups = [group for group in main_object.vertex_groups if group.name.startswith("constraint_point")]
-            for group in constraint_point_groups:
-                vertices_indices = [v.index for v in main_object.data.vertices if group.index in [g.group for g in v.groups]]
-                vertex_coordinates_global = [main_object.matrix_world @ main_object.data.vertices[i].co for i in vertices_indices]
-                for coord in vertex_coordinates_global:
-                    self.create_combined_object_at_location(coord, visual_elements_collection, f"{group.name}", orientation='UP', material=yellow_material)
+            for group in main_object.vertex_groups:
+                if group.name.startswith("constraint_"):
+                    vertices_indices = [v.index for v in main_object.data.vertices 
+                                       if group.index in [g.group for g in v.groups]]
+                    vertex_coordinates_global = [main_object.matrix_world @ main_object.data.vertices[i].co 
+                                               for i in vertices_indices]
+                    
+                    # Verificar si hay información de ejes fijos
+                    has_x = has_y = has_z = False
+                    if "fixation_attributes" in main_object and group.name in main_object["fixation_attributes"]:
+                        attrs = main_object["fixation_attributes"][group.name]
+                        has_x = attrs.get("fixation_x", False)
+                        has_y = attrs.get("fixation_y", False)
+                        has_z = attrs.get("fixation_z", False)
+                    
+                    for coord in vertex_coordinates_global:
+                        self.create_combined_object_at_location(
+                            coord, 
+                            visual_elements_collection, 
+                            f"{group.name}{'_X' if has_x else ''}{'_Y' if has_y else ''}{'_Z' if has_z else ''}", 
+                            orientation='UP', 
+                            material=yellow_material
+                        )
         
-        
-        if main_object and context.scene.show_contact_points:
-            contact_point_groups = [group for group in main_object.vertex_groups if group.name.endswith("_load")]
-            if not contact_point_groups:
-                return {'FINISHED'} 
-
-            loads = json.loads(context.scene["loads"])
-            for group in contact_point_groups:
-                vertices_indices = [v.index for v in main_object.data.vertices if group.index in [g.group for g in v.groups]]
-                vertex_coordinates_global = [main_object.matrix_world @ main_object.data.vertices[i].co for i in vertices_indices]
-                group_name_without_load = group.name.removesuffix('_load')
-                orientation_values = None
-                for load in loads:
-                    if load["name"] == group_name_without_load:
-                        orientation_values = load["values"]
-                        break                  
-                if orientation_values:
-                    vector = Vector(orientation_values)
-                    vector.normalize()
-                    orientation = (-vector.x, -vector.y, -vector.z)
-                else:
-                    orientation = 'RIGHT'
-                    self.report({'WARNING'}, f"Orientation values not found for {group_name_without_load}. Using default orientation.")               
-                for coord in vertex_coordinates_global:
-                    self.create_combined_object_at_location(coord, visual_elements_collection, f"{group.name}", orientation=orientation, material=red_material)
-
-            return {'FINISHED'}  # Asegura retornar 'FINISHED' al final de la ejecución exitosa
+        # Mostrar cargas (loads)
+        if main_object and context.scene.show_force_directions:
+            for group in main_object.vertex_groups:
+                if group.name.endswith("_load"):
+                    vertices_indices = [v.index for v in main_object.data.vertices 
+                                      if group.index in [g.group for g in v.groups]]
+                    vertex_coordinates_global = [main_object.matrix_world @ main_object.data.vertices[i].co 
+                                               for i in vertices_indices]
+                    
+                    # Obtener dirección de carga desde las propiedades personalizadas
+                    orientation = 'RIGHT'  # Orientación por defecto
+                    if "load_attributes" in main_object and group.name in main_object["load_attributes"]:
+                        load_attrs = main_object["load_attributes"][group.name]
+                        load_x = load_attrs.get("load_x", 0)
+                        load_y = load_attrs.get("load_y", 0)
+                        load_z = load_attrs.get("load_z", 0)
+                        
+                        # Crear vector de orientación
+                        if any([load_x, load_y, load_z]):  # Si hay algún valor distinto de cero
+                            vector = Vector((load_x, load_y, load_z))
+                            vector.normalize()
+                            orientation = (-vector.x, -vector.y, -vector.z)
+                    
+                    # Crear visualización para cada vértice en el grupo
+                    for coord in vertex_coordinates_global:
+                        self.create_combined_object_at_location(
+                            coord, 
+                            visual_elements_collection, 
+                            f"{group.name}", 
+                            orientation=orientation, 
+                            material=red_material
+                        )
 
         return {'FINISHED'}
