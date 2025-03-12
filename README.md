@@ -35,6 +35,13 @@ To install the add-on, follow these steps:
 3. Locate and select the zip file.
 4. Activate the add-on by checking the corresponding checkbox.
 
+## Step-by-Step Tutorial Video
+
+Watch this video for a detailed walkthrough of how to use the BFEX add-on:
+
+[![BFEX Tutorial Video](http://img.youtube.com/vi/lrPJ_UE8YZ4/0.jpg)](http://www.youtube.com/watch?v=lrPJ_UE8YZ4)
+
+
 ## Before You Start
 
 ### Check Mesh Quality
