@@ -45,12 +45,26 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         row.prop(context.scene, "show_scale_section", text="Scale", icon='DISCLOSURE_TRI_DOWN' if context.scene.show_scale_section else 'DISCLOSURE_TRI_RIGHT', emboss=False)
         
         if context.scene.show_scale_section:
-            row = box.row(align=True)
-            row.operator("view3d.calculate_area", text="Calculate Area", icon='DRIVER_DISTANCE')
-            row.prop(context.scene, "calculated_area", text="Area", emboss=False)
-            row = box.row(align=True)
-            row.operator("view3d.scale_to_target_area", text="Scale to Target Area", icon='DRIVER_DISTANCE')
-            row.prop(context.scene, "target_area", text="Target Area", emboss=False)
+            # Scale Section
+            row = box.row()
+            row.prop(context.scene, "scale_property", text="Scale By")
+            
+            if context.scene.scale_property == 'area':
+                box.label(text="Scale to surface area")
+                row = box.row(align=True)
+                row.operator("view3d.calculate_area", text="Calculate Area", icon='DRIVER_DISTANCE')
+                row.prop(context.scene, "calculated_area", text="Area", emboss=False)
+                row = box.row(align=True)
+                row.operator("view3d.scale_to_target_area", text="Scale to Target Area", icon='DRIVER_DISTANCE')
+                row.prop(context.scene, "target_area", text="Target Area", emboss=False)
+            elif context.scene.scale_property == 'volume':  
+                box.label(text="Scale to volume")
+                row = box.row(align=True)
+                row.operator("view3d.calculate_volume", text="Calculate Volume")
+                row.prop(context.scene, "calculated_volume", text="Volume", emboss=False)
+                row = box.row(align=True)
+                row.operator("view3d.scale_to_target_volume", text="Scale to Target Volume")
+                row.prop(context.scene, "target_volume", text="Target Volume", emboss=False)
 
         # Extract Surfaces Section
         box = layout.box()

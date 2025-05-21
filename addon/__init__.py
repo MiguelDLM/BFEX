@@ -14,7 +14,7 @@ from mathutils import Vector, kdtree
 from .menu import VIEW3D_PT_BFEXMenu_PT, VIEW3D_OT_UpdateLoadingScenario
 from .browse_folder import VIEW3D_OT_BrowseFolderOperator
 from .create_folder_and_collection import VIEW3D_OT_CreateFolderOperator
-from .scale import VIEW3D_OT_CalculateAreaOperator, VIEW3D_OT_ScaleToTargetAreaOperator
+from .scale import VIEW3D_OT_CalculateAreaOperator, VIEW3D_OT_ScaleToTargetAreaOperator, VIEW3D_OT_ScaleToTargetVolumeOperator, VIEW3D_OT_CalculateVolumeOperator
 from .start_selection import VIEW3D_OT_StartSelectionOperator
 from .submit_selection import VIEW3D_OT_SubmitSelectionOperator
 from .select_vertex import VIEW3D_OT_SelectVertexOperator
@@ -90,6 +90,9 @@ def register():
     bpy.utils.register_class(VIEW3D_OT_UpdateLoadAttributes)
     bpy.utils.register_class(VIEW3D_OT_DeleteLoadGroup)
     bpy.utils.register_class(VIEW3D_OT_SelectLoadGroup)
+    bpy.utils.register_class(VIEW3D_OT_ScaleToTargetVolumeOperator)
+    bpy.utils.register_class(VIEW3D_OT_CalculateVolumeOperator)
+
     
     
 
@@ -296,13 +299,28 @@ def register():
         default=False,
         description="Display arrows indicating force directions"
     )
-    
     bpy.types.Scene.show_scale_section = bpy.props.BoolProperty(
         name="Show Scale Section",
         default=False,
         description="Expand or collapse the scale section"
     )
-    
+
+    bpy.types.Scene.scale_property = bpy.props.EnumProperty(
+        name="Scale Property",
+        items=[
+            ('area', "Area", "Scale to target area"),
+            ('volume', "Volume", "Scale to target volume"),
+        ],
+        default='area',
+        description="Select the property to scale the mesh"
+    )
+
+    bpy.types.Scene.show_scale_section = bpy.props.BoolProperty(
+        name="Show Scale Section",
+        default=False,
+        description="Expand or collapse the scale section"
+    )
+
     bpy.types.Scene.calculated_area = bpy.props.StringProperty(
         name="Calculated Area",
         default="Not calculated yet",
@@ -321,6 +339,25 @@ def register():
         default=100.0,
         min=0.1,
         description="Target area for scaling the mesh"
+    )
+
+    bpy.types.Scene.calculated_volume = bpy.props.StringProperty(
+        name="Calculated Volume",
+        default="Not calculated yet",
+        description="Result of the scale calculation"
+    )
+
+    bpy.types.Scene.calculated_volume_value = bpy.props.FloatProperty(
+        name="Calculated Volume Value",
+        default=0.0,
+        min=0.0,
+        description="Value of the calculated volume"
+    )
+    bpy.types.Scene.target_volume = bpy.props.FloatProperty(
+        name="Scale Target Volume",
+        default=100.0,
+        min=0.1,
+        description="Target volume for scaling the mesh"
     )
                 
     bpy.types.Scene.sample_name = StringProperty(
@@ -451,6 +488,8 @@ def unregister():
         VIEW3D_OT_UpdateLoadAttributes,
         VIEW3D_OT_CalculateAreaOperator,
         VIEW3D_OT_ScaleToTargetAreaOperator,
+        VIEW3D_OT_ScaleToTargetVolumeOperator,
+        VIEW3D_OT_CalculateVolumeOperator
 
     ]
     
