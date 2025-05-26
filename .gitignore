@@ -165,3 +165,7 @@ README.html
 
 #Workspace folders
 workspace/
+
+# Omit zip
+
+BFEX.zip
