@@ -136,8 +136,14 @@ def convert_files():
 
 def run_conversion(folder_path, file, export_options, callback):
 
-    # Obtener la ruta del directorio donde se encuentra el archivo main.py
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    # Determinar la ubicación base según si estamos ejecutando desde un ejecutable o un script
+    if getattr(sys, 'frozen', False):
+        # Estamos ejecutando desde un ejecutable de PyInstaller
+        # Usar el directorio donde está el ejecutable
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        # Estamos ejecutando desde el script Python normal
+        base_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Determinar el nombre del ejecutable o script basado en el sistema operativo
     if platform.system() == "Windows":
@@ -152,8 +158,10 @@ def run_conversion(folder_path, file, export_options, callback):
     # Verificar si el archivo es un ejecutable o un script Python
     if os.path.isfile(executable_path):
         command = [executable_path, folder_path, file] + export_options
+        print(f"Using executable: {executable_path}")
     elif os.path.isfile(script_path):
         command = [sys.executable, script_path, folder_path, file] + export_options
+        print(f"Using script: {script_path}")
     else:
         print(f"Error: Neither executable nor script file found at {executable_path} or {script_path}")
         return

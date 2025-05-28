@@ -6,15 +6,23 @@ a = Analysis(
     ['main.py'],  # Script principal
     pathex=['.'],
     binaries=[],  # No se necesitan binarios adicionales
-    datas=[],
-    hiddenimports=[
+    datas=[],    hiddenimports=[
         'os',
         'sys',
-        'tkinter',
         'customtkinter',
+        'tkinter',
+        'tkinter.font',
+        'tkinter.ttk',
+        'tkinter.messagebox',
+        'tkinter.filedialog',
+        'tkinter.colorchooser',
         'queue',
         'threading',
         'subprocess',
+        'ctypes',
+        'ctypes.wintypes',
+        'packaging',
+        'packaging.version',
     ],
     hookspath=['./hooks'],  # Añadir el directorio de hooks si es necesario
     hooksconfig={},
