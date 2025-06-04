@@ -68,9 +68,9 @@ class View3D_OT_Submit_load(Operator):
             force_direction = force_vector.normalized()
 
             total_force = context.scene.load_force
-            adjusted_load_x = (force_direction.x * total_force) * -1
-            adjusted_load_y = (force_direction.y * total_force)
-            adjusted_load_z = (force_direction.z * total_force) * -1
+            adjusted_load_x = force_direction.x * total_force
+            adjusted_load_y = force_direction.y * total_force
+            adjusted_load_z = force_direction.z * total_force
 
         elif context.scene.load_input_method == 'MANUAL':
             adjusted_load_x = context.scene.load_x / num_vertices
