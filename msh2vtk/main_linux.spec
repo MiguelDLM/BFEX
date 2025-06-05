@@ -3,22 +3,31 @@
 block_cipher = None
 
 a = Analysis(
-    ['main.py'],  # Script principal
-    pathex=['.'],
-    binaries=[],  # No se necesitan binarios adicionales
+    ['main.py'],
+    pathex=[],
+    binaries=[],
     datas=[],
     hiddenimports=[
-        'os',
-        'sys',
+        'numpy',
+        'pandas',
+        'gmsh',
+        'pyvista',
+        'requests',
         'tkinter',
         'customtkinter',
-        'queue',
+        'PIL',
         'threading',
-        'subprocess',
+        'json',
+        'os',
+        'sys',
+        'pathlib',
+        'matplotlib',
+        'vtk'
     ],
-    hookspath=[],  # No hooks adicionales
-    runtime_hooks=[],  # No runtime hooks adicionales
-    excludes=[],  # No exclusiones específicas
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=['PySide2', 'PySide6', 'PyQt6'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -33,11 +42,17 @@ exe = EXE(
     a.binaries,
     a.zipfiles,
     a.datas,
-    strip=False,
-    upx=False,  # Deshabilitar UPX para evitar problemas en Linux
-    upx_exclude=[],
-    name='main',
+    [],
+    name='msh2vtk',
     debug=False,
     bootloader_ignore_signals=False,
-    console=True,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+    disable_windowed_traceback=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
 )
