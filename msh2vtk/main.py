@@ -1248,7 +1248,7 @@ def process_fossils_output(selected_file, export_von_mises=True, export_smooth_s
                     gmsh.model.remove()
                 print(f"🔍 DEBUG: Removed {len(model_list)} existing models")
             except:
-                print("🔍 DEBUG: No models to clea
+                print("🔍 DEBUG: No models to clean")
             
             try:
                 # Clear all views

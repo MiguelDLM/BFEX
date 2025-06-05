@@ -167,5 +167,39 @@ README.html
 workspace/
 
 # Omit zip
+BFEX.zip
+microsoft-edge-stable_current_amd64.deb
 
-BFEX.zipmicrosoft-edge-stable_current_amd64.deb
+# MSH2VTK specific files
+msh2vtk/build/
+msh2vtk/build_windows/
+msh2vtk/dist/
+msh2vtk/dist_windows/
+msh2vtk/hooks/
+msh2vtk/*.json
+msh2vtk/*.log
+msh2vtk/*.txt
+!msh2vtk/requirements.txt
+!msh2vtk/README.md
+!msh2vtk/TELEGRAM_SETUP.md
+
+# PyInstaller spec files (except main ones)
+msh2vtk/*_auto_*.spec
+msh2vtk/*_fixed_*.spec
+msh2vtk/*_optimized_*.spec
+msh2vtk/*_simple.spec
+msh2vtk/msh2vtk.exe.spec
+
+# Build artifacts
+msh2vtk/*.exe
+msh2vtk/process_msh.py
+msh2vtk/test_*.py
+msh2vtk/build_linux.py
+msh2vtk/build_linux.sh
+
+# Docker build context
+msh2vtk/.dockerignore
+
+# Configuration files with sensitive data
+msh2vtk/fossils_config.json
+msh2vtk/telegram_config.json
