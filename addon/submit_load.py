@@ -4,7 +4,8 @@
 import bpy
 from bpy.types import Operator
 import mathutils
-import json  
+import json
+from .utils import to_world_coordinates
 
 class View3D_OT_Submit_load(Operator):
     bl_idname = "view3d.submit_load"
@@ -54,7 +55,7 @@ class View3D_OT_Submit_load(Operator):
         if context.scene.load_input_method == 'VERTICES':
             # Get the selected vertex position
             selected_vertex = mesh.vertices[selected_vertices_indices[0]]
-            selected_vertex_position = active_object.matrix_world @ selected_vertex.co.copy()
+            selected_vertex_position = to_world_coordinates(active_object, selected_vertex.co.copy())
             
             # Get the focal point
             if not hasattr(context.scene, 'loads_focal') or context.scene.loads_focal == "":

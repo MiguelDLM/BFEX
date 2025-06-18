@@ -7,6 +7,7 @@ import random
 from bpy.types import Operator
 from mathutils import Vector
 import bmesh
+from .utils import to_world_coordinates
 
 class VIEW3D_OT_VisualElementsOperator(Operator):
     bl_idname = "view3d.visual_elements"
@@ -130,7 +131,7 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                             
                             # Crear un punto para representar el centro del músculo
                             # Usar el centro del objeto en lugar de buscar un grupo de vértices
-                            muscle_center = muscle_obj.matrix_world @ Vector((0, 0, 0))
+                            muscle_center = to_world_coordinates(muscle_obj, Vector((0, 0, 0)))
                             
                             # Calcular dirección desde el centro del músculo hacia el punto focal
                             direction = (focal_point - muscle_center).normalized()
@@ -156,8 +157,10 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                 if group.name.startswith("contact_"):
                     vertices_indices = [v.index for v in main_object.data.vertices 
                                        if group.index in [g.group for g in v.groups]]
-                    vertex_coordinates_global = [main_object.matrix_world @ main_object.data.vertices[i].co 
-                                               for i in vertices_indices]
+                    vertex_coordinates_global = [
+                        to_world_coordinates(main_object, main_object.data.vertices[i].co)
+                        for i in vertices_indices
+                    ]
                     
                     # Verificar si hay información de ejes fijos
                     has_x = has_y = has_z = False
@@ -182,8 +185,10 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                 if group.name.startswith("constraint_"):
                     vertices_indices = [v.index for v in main_object.data.vertices 
                                        if group.index in [g.group for g in v.groups]]
-                    vertex_coordinates_global = [main_object.matrix_world @ main_object.data.vertices[i].co 
-                                               for i in vertices_indices]
+                    vertex_coordinates_global = [
+                        to_world_coordinates(main_object, main_object.data.vertices[i].co)
+                        for i in vertices_indices
+                    ]
                     
                     # Verificar si hay información de ejes fijos
                     has_x = has_y = has_z = False
@@ -208,8 +213,10 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                 if group.name.endswith("_load"):
                     vertices_indices = [v.index for v in main_object.data.vertices 
                                       if group.index in [g.group for g in v.groups]]
-                    vertex_coordinates_global = [main_object.matrix_world @ main_object.data.vertices[i].co 
-                                               for i in vertices_indices]
+                    vertex_coordinates_global = [
+                        to_world_coordinates(main_object, main_object.data.vertices[i].co)
+                        for i in vertices_indices
+                    ]
                     
                     # Obtener dirección de carga desde las propiedades personalizadas
                     orientation = 'RIGHT'  # Orientación por defecto

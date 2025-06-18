@@ -5,6 +5,7 @@ from bpy.types import Operator
 import mathutils
 import bpy
 import json
+from .utils import to_world_coordinates
 
 class View3D_OT_SubmitFocalLoad(Operator):
     bl_idname = "view3d.submit_focal_load"
@@ -24,12 +25,6 @@ class View3D_OT_SubmitFocalLoad(Operator):
             self.report({'ERROR'}, "No vertices selected.")
             return {'CANCELLED'}
 
-        def get_transformed_coordinates(obj, coordinates):
-            matrix_world = obj.matrix_world
-            original_vector = mathutils.Vector(coordinates)
-            transformed_vector = matrix_world @ original_vector
-            return transformed_vector
-
         if len(selected_vertices_indices) > 1:
             # Calculate the centroid of selected vertices
             sum_coords = mathutils.Vector((0, 0, 0))
@@ -37,12 +32,12 @@ class View3D_OT_SubmitFocalLoad(Operator):
                 sum_coords += active_object.data.vertices[vertex_index].co
             centroid = sum_coords / len(selected_vertices_indices)
             # Transform centroid to global coordinates
-            transformed_centroid = get_transformed_coordinates(active_object, centroid)
+            transformed_centroid = to_world_coordinates(active_object, centroid)
             loads_focal_str = json.dumps([transformed_centroid.x, transformed_centroid.y, transformed_centroid.z])
         else:
             # Handle the single vertex case (or no vertex, which is caught earlier)
             vertex_coords = active_object.data.vertices[selected_vertices_indices[0]].co
-            transformed_coords = get_transformed_coordinates(active_object, vertex_coords)
+            transformed_coords = to_world_coordinates(active_object, vertex_coords)
             loads_focal_str = json.dumps([transformed_coords.x, transformed_coords.y, transformed_coords.z])
         
         context.scene.loads_focal = loads_focal_str
