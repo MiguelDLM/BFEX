@@ -329,7 +329,6 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
 
         col1.prop(context.scene, "display_existing_results", text="Display Existing Results")
         col1.prop(context.scene, "open_results_when_finish", text="Open Results When Finish")
-        col1.prop(context.scene, "run_as_admin", text="Run as Admin")
 
         col2.operator("view3d.export_meshes", text="Export files", icon='EXPORT')
         col2.operator("view3d.run_fossils", text="Run Fossils", icon='PLAY')

@@ -5,7 +5,6 @@ import bpy
 import os
 import subprocess
 import platform
-import ctypes
 from bpy.types import Operator
 
 
@@ -41,15 +40,12 @@ class VIEW3D_OT_RunFossilsOperator(Operator):
             args.append("--nogui")
         
         try:
-            if platform.system() == 'Windows' and context.scene.run_as_admin:
-                args = ' '.join(args)
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", fossils_path, args, python_file_path, 1)
-            else:
-                if platform.system() == 'Windows':
-                    subprocess.Popen([fossils_path] + args, creationflags=subprocess.CREATE_NEW_CONSOLE, cwd=os.path.dirname(python_file_path))
-                elif platform.system() == 'Linux':
-                    subprocess.Popen(['xterm', '-e', fossils_path] + args, cwd=os.path.dirname(python_file_path))
-        
+            cmd = [fossils_path] + args
+            if platform.system() == 'Windows':
+                subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE, cwd=os.path.dirname(python_file_path))
+            elif platform.system() == 'Linux':
+                subprocess.Popen(['xterm', '-e'] + cmd, cwd=os.path.dirname(python_file_path))
+            
             self.report({'INFO'}, f"External program '{fossils_path}' started successfully with Python file: '{python_file_path}'")
         except Exception as e:
             self.report({'ERROR'}, f"Error starting external program: {e}. Be sure to have the correct path to Fossils in the preferences. Command: {fossils_path} {args}")

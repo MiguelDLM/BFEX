@@ -5,6 +5,7 @@ import bpy
 from bpy.types import Operator
 from mathutils import Vector
 import mathutils
+from .utils import to_world_coordinates
 
 
 class VIEW3D_OT_SubmitFocalPointOperator(Operator):
@@ -43,10 +44,7 @@ class VIEW3D_OT_SubmitFocalPointOperator(Operator):
             self.report({'ERROR'}, "Please select at least one vertex as the Focal Point.")
             return {'CANCELLED'}
         def get_transformed_coordinates(obj, coordinates):
-
-            matrix_world = obj.matrix_world
-            original_vector = mathutils.Vector(coordinates)
-            transformed_vector = matrix_world @ original_vector
+            transformed_vector = to_world_coordinates(obj, mathutils.Vector(coordinates))
             return transformed_vector.x, transformed_vector.y, transformed_vector.z
         
         # Calculate the average coordinates of the selected vertices

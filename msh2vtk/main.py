@@ -11,21 +11,45 @@ import json
 import requests
 import datetime
 import time
-import numpy as np
-import pandas as pd
+# Heavy libraries are loaded lazily to reduce startup time
+gmsh = None
+pv = None
+vtk = None
+np = None
+pd = None
 
-# Try to import optional dependencies for MSH processing
-try:
-    import gmsh
-    import pyvista as pv
-    from pyvista import _vtk as vtk
-    MSH_PROCESSING_AVAILABLE = True
-    print("✅ MSH processing libraries available (gmsh, pyvista)")
-except ImportError as e:
-    MSH_PROCESSING_AVAILABLE = False
-    print(f"⚠️  MSH processing libraries not available: {e}")
-    print("   Install with: pip install gmsh pyvista")
-    print("   MSH to CSV/VTK conversion will be disabled")
+# ``None`` indicates we haven't tried loading yet
+MSH_PROCESSING_AVAILABLE = None
+
+
+def ensure_msh_libraries():
+    """Load optional MSH processing libraries on demand."""
+    global gmsh, pv, vtk, np, pd, MSH_PROCESSING_AVAILABLE
+
+    if MSH_PROCESSING_AVAILABLE is not None:
+        return MSH_PROCESSING_AVAILABLE
+
+    try:
+        import numpy as _np
+        import pandas as _pd
+        import gmsh as _gmsh
+        import pyvista as _pv
+        from pyvista import _vtk as _vtk
+
+        np = _np
+        pd = _pd
+        gmsh = _gmsh
+        pv = _pv
+        vtk = _vtk
+
+        MSH_PROCESSING_AVAILABLE = True
+        print("✅ MSH processing libraries available (gmsh, pyvista)")
+    except ImportError as e:
+        MSH_PROCESSING_AVAILABLE = False
+        print(f"⚠️  MSH processing libraries not available: {e}")
+        print("   Install with: pip install gmsh pyvista numpy pandas")
+
+    return MSH_PROCESSING_AVAILABLE
 
 # Telegram Configuration
 TELEGRAM_BOT_TOKEN = ""
@@ -672,7 +696,7 @@ def on_fossils_complete():
         cancel_fossils_button.configure(state="disabled")
         
         # Update status message based on MSH processing availability
-        if MSH_PROCESSING_AVAILABLE:
+        if ensure_msh_libraries():
             fossils_status_label_main.configure(text="✅ All Fossils processes and MSH processing completed", text_color="green")
             completion_message_text = "🎉 <b>MSH2VTK - All Fossils Processes and MSH Processing Completed</b>"
         else:
@@ -778,7 +802,7 @@ def run_fossils(fossils_path, file):
                 print(f"⚠️  Workspace folder rename failed for: {os.path.basename(file)}")
             
             # Process MSH files automatically if libraries are available
-            if MSH_PROCESSING_AVAILABLE:
+            if ensure_msh_libraries():
                 print(f"🔄 Starting MSH processing for: {os.path.basename(file)}")
                 
                 # Update status to show MSH processing
@@ -823,7 +847,7 @@ def run_fossils(fossils_path, file):
             
             # Send success notification to Telegram
             if TELEGRAM_ENABLED:
-                if MSH_PROCESSING_AVAILABLE:
+                if ensure_msh_libraries():
                     message = f"✅ <b>Fossils Analysis & MSH Processing Completed</b>\n📁 {os.path.basename(file)}\n⏱️ {execution_time:.2f}s"
                 else:
                     message = f"✅ <b>Fossils Analysis Completed</b>\n📁 {os.path.basename(file)}\n⏱️ {execution_time:.2f}s\n⚠️ MSH processing unavailable"
@@ -1218,7 +1242,7 @@ def find_msh_files(python_file):
 
 def process_fossils_output(selected_file, export_von_mises=True, export_smooth_stress=True, export_vtk=True):
     """Process Fossils output MSH files and convert them to CSV/VTK"""
-    if not MSH_PROCESSING_AVAILABLE:
+    if not ensure_msh_libraries():
         print("❌ MSH processing libraries not available. Skipping conversion.")
         return False
     

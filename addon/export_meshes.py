@@ -6,6 +6,7 @@ import bpy
 import json
 import mathutils
 from bpy.types import Operator
+from .utils import to_world_coordinates
 
 class VIEW3D_OT_ExportMeshesOperator(Operator):
     bl_idname = "view3d.export_meshes"
@@ -99,7 +100,7 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
                                 # Use the first vertex in the group
                                 vertex_index = vertices_indices[0]
                                 vertex_co = main_object.data.vertices[vertex_index].co.copy()
-                                world_co = main_object.matrix_world @ vertex_co
+                                world_co = to_world_coordinates(main_object, vertex_co)
                                 
                                 # Create the fixation entry
                                 fixation_entry = {
@@ -132,7 +133,7 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
                                 # Create the load entry
                                 for vertex_index in vertices_indices:
                                     vertex_co = main_object.data.vertices[vertex_index].co.copy()
-                                    world_co = main_object.matrix_world @ vertex_co
+                                    world_co = to_world_coordinates(main_object, vertex_co)
                                     
                                     load_entry = {
                                         "name": vgroup.name.replace("_load", ""),

@@ -16,12 +16,6 @@ a = Analysis(
         'tkinter',
         'customtkinter',
         'PIL',
-        'threading',
-        'json',
-        'os',
-        'sys',
-        'pathlib',
-        'matplotlib',
         'vtk'
     ],
     hookspath=[],

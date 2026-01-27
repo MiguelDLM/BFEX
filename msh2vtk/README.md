@@ -109,6 +109,29 @@ You can manually edit this file or delete it to disable notifications.
 - `requests`: For Telegram API communication
 - `tkinter`: Built-in Python GUI library
 
+## Building a Lightweight Executable
+
+The project includes PyInstaller spec files for Windows and Linux
+(located in this folder). To generate a smaller standalone binary:
+
+1. Install PyInstaller:
+
+   ```bash
+   pip install pyinstaller
+   ```
+
+2. Build using the spec file for your platform with the `--clean`,
+   `--onefile` and `--strip` options:
+
+   ```bash
+   pyinstaller --clean --onefile --strip main_linux.spec    # on Linux
+   pyinstaller --clean --onefile --strip main_windows.spec  # on Windows
+   ```
+
+These spec files list only the required libraries (numpy, pandas, gmsh,
+pyvista, requests and the GUI modules). Adjust them if you remove or add
+dependencies to keep the generated executable as small as possible.
+
 ## License
 
 This project is part of the BFEX (Biomechanical Finite Element Analysis) suite.

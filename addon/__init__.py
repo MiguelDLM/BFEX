@@ -54,11 +54,7 @@ class OBJECT_OT_BFEX_preferences(bpy.types.Operator):
 
         return {'FINISHED'}
 
-# Utilities 
-def set_object_mode(obj, mode):
-    bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.mode_set(mode=mode)
-
+# Utilities
 def get_addon_name():
     return __name__.split('.')[0]
     
@@ -270,11 +266,6 @@ def register():
         update=update_checkboxes
     )
     
-    bpy.types.Scene.run_as_admin = bpy.props.BoolProperty(
-        name="Open Results When Finish",
-        default=False,
-        update=update_checkboxes
-    )   
     
     bpy.types.Scene.show_constraint_points = bpy.props.BoolProperty(
         name="Show Constraint Points",
@@ -299,12 +290,6 @@ def register():
         default=False,
         description="Display arrows indicating force directions"
     )
-    bpy.types.Scene.show_scale_section = bpy.props.BoolProperty(
-        name="Show Scale Section",
-        default=False,
-        description="Expand or collapse the scale section"
-    )
-
     bpy.types.Scene.scale_property = bpy.props.EnumProperty(
         name="Scale Property",
         items=[
@@ -511,7 +496,6 @@ def unregister():
         "fixation_z",
         "display_existing_results",
         "open_results_when_finish",
-        "run_as_admin",
         "show_constraint_points",
         "show_contact_points",
         "show_attachment_areas",
