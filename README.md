@@ -60,35 +60,38 @@ Ensure your mesh is free of errors by utilizing the 3D print add-on and clicking
 2. **Main Mesh Selection:**
    - Select an object to be used as the main bone/mesh.
 
-3. **Muscle Attachment Surface Creation:**
+3. **Mesh Scale (Optional):**
+   - If the purpose of the analysis is to compare the results among different specimens, it is recommended to scale the mesh to a common size (area or volume). This can be done by selecting the scale property and the target size (area or volume) in the add-on panel.
+
+4. **Muscle Attachment Surface Creation:**
    - Type the name of the muscle/sub-mesh to be subtracted.
    - Click "Start Selection" to enter Edit mode and activate the lasso selection tool.
    - Select surfaces for extraction and click "Submit Selection" to create a new sub-mesh in the collection.
 
-4. **Force Direction Setup:**
+5. **Force Direction Setup:**
    - Click "Select Focal Point" to choose a point on a reference object where the force will be applied.
    - Click "Submit Focal Point" to store the coordinates.
 
-5. **Input Force and Loading Scenario:**
+6. **Input Force and Loading Scenario:**
    - Enter the force applied by the muscle and select the loading scenario (Uniform, Tangential, or Tangential plus Normal Traction).
 
-6. **Repeat for Multiple Muscles:**
+7. **Repeat for Multiple Muscles:**
    - Repeat steps 3 to 5 for each muscle to be modeled.
 
-9. **Contact and Constraint Points:**
+8. **Contact and Constraint Points:**
    - Click "Select Contact Points" to switch to Edit mode and select vertices where loading forces will be applied.
    - Choose movement restrictions in the contact points.
 
-10. **Define Loads:**
+9. **Define Loads:**
       - Click "Select Load faces" to switch to Edit mode and select vertices where loads will be applied.
       - Input the load value on each axis
 
-11. **Export and Run Fossils:**
+10. **Export and Run Fossils:**
     - Set material properties like Young's Modulus and Poisson's Ratio.
     - Click "Export Files" to export sub-meshes and the Python script for Fossils.
     - Click "Run Fossils" to initiate the FEA analysis (add the path to fossils in the preferences' menu)
 
-12. **Results and Visualization:**
+11. **Results and Visualization:**
     - Use buttons like "Open FEA Results Folder" and "Visual Elements" to navigate and visualize results.
    
 ## Common Issues

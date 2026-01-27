@@ -172,7 +172,7 @@ class VIEW3D_OT_ExportMeshesOperator(Operator):
                                 
                                 # Create the muscle entry
                                 muscle_entry = {
-                                    "name": obj.name,
+                                    "file": f"{{path}}/{obj.name}.stl",
                                     "focalpt": focal_point,
                                     "force": force,
                                     "method": loading_scenario
@@ -192,7 +192,22 @@ def parms(d={{}}):
     import os
     path = os.path.join(os.path.dirname(__file__), '{collection_name}')
     p['bone'] = f'{{path}}/{file_name_main}'
-    p['muscles'] = {json.dumps(muscles_list, indent=4)}
+    p['muscles'] = ["""
+                    
+                    # Generate muscles list manually to preserve f-strings
+                    for i, muscle in enumerate(muscles_list):
+                        script_content += f"""
+    {{
+        'file': f'{{path}}/{muscle['file'].split('/')[-1]}',
+        'force': {muscle['force']},
+        'focalpt': {muscle['focalpt']},
+        'method': '{muscle['method']}'
+    }}"""
+                        if i < len(muscles_list) - 1:
+                            script_content += ","
+                    
+                    script_content += f"""
+]
     p['fixations'] = {json.dumps(fixations_list, indent=4)}
     p['loads'] = {json.dumps(loads_list, indent=4)}
     

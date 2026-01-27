@@ -223,7 +223,7 @@ class VIEW3D_OT_VisualElementsOperator(Operator):
                         if any([load_x, load_y, load_z]):  # Si hay algún valor distinto de cero
                             vector = Vector((load_x, load_y, load_z))
                             vector.normalize()
-                            orientation = (-vector.x, -vector.y, -vector.z)
+                            orientation = (vector.x, vector.y, vector.z)
                     
                     # Crear visualización para cada vértice en el grupo
                     for coord in vertex_coordinates_global:

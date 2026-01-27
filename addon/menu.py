@@ -39,6 +39,33 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         row = box.row()
         row.prop(context.scene, "selected_reference_object", text="Reference Object", icon='OBJECT_DATA')
 
+        # Scale Section
+        box = layout.box()
+        row = box.row(align=True)
+        row.prop(context.scene, "show_scale_section", text="Scale", icon='DISCLOSURE_TRI_DOWN' if context.scene.show_scale_section else 'DISCLOSURE_TRI_RIGHT', emboss=False)
+        
+        if context.scene.show_scale_section:
+            # Scale Section
+            row = box.row()
+            row.prop(context.scene, "scale_property", text="Scale By")
+            
+            if context.scene.scale_property == 'area':
+                box.label(text="Scale to surface area")
+                row = box.row(align=True)
+                row.operator("view3d.calculate_area", text="Calculate Area", icon='DRIVER_DISTANCE')
+                row.prop(context.scene, "calculated_area", text="Area", emboss=False)
+                row = box.row(align=True)
+                row.operator("view3d.scale_to_target_area", text="Scale to Target Area", icon='DRIVER_DISTANCE')
+                row.prop(context.scene, "target_area", text="Target Area", emboss=False)
+            elif context.scene.scale_property == 'volume':  
+                box.label(text="Scale to volume")
+                row = box.row(align=True)
+                row.operator("view3d.calculate_volume", text="Calculate Volume")
+                row.prop(context.scene, "calculated_volume", text="Volume", emboss=False)
+                row = box.row(align=True)
+                row.operator("view3d.scale_to_target_volume", text="Scale to Target Volume")
+                row.prop(context.scene, "target_volume", text="Target Volume", emboss=False)
+
         # Extract Surfaces Section
         box = layout.box()
         box.label(text="Extract muscle attachment areas and properties")
@@ -307,3 +334,4 @@ class VIEW3D_PT_BFEXMenu_PT(bpy.types.Panel):
         col2.operator("view3d.export_meshes", text="Export files", icon='EXPORT')
         col2.operator("view3d.run_fossils", text="Run Fossils", icon='PLAY')
         col2.operator("view3d.open_fea_results_folder", text="Open FEA Results Folder", icon='FILE_FOLDER')
+        
