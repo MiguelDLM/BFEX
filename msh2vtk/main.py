@@ -14,6 +14,8 @@ import time
 import numpy as np
 import pandas as pd
 
+import re
+
 # Try to import optional dependencies for MSH processing
 try:
     import gmsh
@@ -771,14 +773,56 @@ def run_fossils(fossils_path, file):
             
             # Rename workspace folder to match the Python file name
             print(f"🔄 Renaming workspace folder for: {os.path.basename(file)}")
-            rename_success = rename_workspace_folder(file)
+            # Try to extract workspace path from Fossils stdout if available and pass as hint
+            workspace_hint = None
+            try:
+                # Capture lines like: workspace = /path/to/workspace
+                # We need to ensure we are searching in the stdout we just captured
+                if stdout:
+                    m = re.search(r"^\s*workspace\s*[:=]\s*(.+)$", stdout, flags=re.MULTILINE | re.IGNORECASE)
+                    if m:
+                        workspace_hint = m.group(1).strip().strip('"\'')
+                        # remove any trailing text after a space (in case line contains extra words)
+                        # Actually in the log provided: "workspace = /path/to/workspace" seems clean, 
+                        # but let's be careful not to split paths with spaces if they are valid.
+                        # However, Fossils log output might not quote paths.
+                        # The user provided log: 
+                        # workspace = /home/miguel/.../ossils_fossils_dist_fossils__internal_models_others_dolicorhynchops_dolicorhynchops_10k (copy)
+                        # It contains spaces at the end "(copy)". So splitting by space might be dangerous if the path has spaces.
+                        # We should trust the capture group until the end of line.
+                        workspace_hint = os.path.normpath(workspace_hint)
+                        print(f"🔎 Detected workspace path in Fossils output: {workspace_hint}")
+            except Exception as e:
+                print(f"⚠️ Error parsing workspace hint: {e}")
+                workspace_hint = None
+
+            rename_success, renamed_workspace_path = rename_workspace_folder(file, workspace_hint=workspace_hint)
             if rename_success:
                 print(f"✅ Workspace folder rename completed for: {os.path.basename(file)}")
+                # Update workspace_hint to the renamed path
+                if renamed_workspace_path:
+                    workspace_hint = renamed_workspace_path
             else:
                 print(f"⚠️  Workspace folder rename failed for: {os.path.basename(file)}")
             
-            # Process MSH files automatically if libraries are available
-            if MSH_PROCESSING_AVAILABLE:
+            # Process MSH files automatically if libraries are available and Export VTK is enabled
+            should_auto_convert = False
+            try:
+                # We need to access the checkbox variable. 
+                # Since we are in a thread, direct access might be unsafe but `get()` on BooleanVar 
+                # is generally thread-safe in CPython for reading (Tcl is thread-specific but Tkinter wraps it).
+                # However, safe approach is usually `app.after` with a queue, but here we need the value now.
+                # Given the context of this script, reading the variable is the standard way.
+                # Note: `export_vtk_var` is the unified toggle.
+                should_auto_convert = bool(export_vtk_var.get())
+            except Exception:
+                # Fallback if variable access fails
+                should_auto_convert = True # Default to True or False? 
+                # Ideally default to what was configured. Let's assume True if we can't read it?
+                # Or False to be safe.
+                should_auto_convert = True
+
+            if MSH_PROCESSING_AVAILABLE and should_auto_convert:
                 print(f"🔄 Starting MSH processing for: {os.path.basename(file)}")
                 
                 # Update status to show MSH processing
@@ -800,7 +844,8 @@ def run_fossils(fossils_path, file):
                         file, 
                         export_von_mises=export_von_mises,
                         export_smooth_stress=export_smooth_stress,
-                        export_vtk=export_vtk
+                        export_vtk=export_vtk,
+                        workspace_hint=workspace_hint
                     )
                     
                     if msh_success:
@@ -811,7 +856,10 @@ def run_fossils(fossils_path, file):
                 except Exception as e:
                     print(f"❌ Error during MSH processing for {os.path.basename(file)}: {e}")
             else:
-                print(f"⚠️ MSH processing skipped (libraries not available) for: {os.path.basename(file)}")
+                if not should_auto_convert:
+                    print(f"⚪ Auto-convert disabled (Export VTK unchecked); skipping MSH processing for: {os.path.basename(file)}")
+                else:
+                    print(f"⚠️ MSH processing skipped (libraries not available) for: {os.path.basename(file)}")
             
             # Update status label with completion info
             remaining_count = len(running_processes)
@@ -915,6 +963,13 @@ def convert_files():
         export_options.append("--export-smooth-stress")
     if export_vtk_var.get():
         export_options.append("--export-vtk")
+    # Use export_vtk as auto-convert-results flag too since they are merged in logic
+    if export_vtk_var.get():
+        pass 
+             
+    # Cleanup option: Convert_to_csv supports --no-cleanup to prevent deletion
+    if not cleanup_var.get():
+        export_options.append("--no-cleanup")
 
     for file in selected_files:
         threading.Thread(target=run_conversion, args=(folder_path, file, export_options, on_conversion_complete)).start()
@@ -923,8 +978,7 @@ def run_conversion(folder_path, file, export_options, callback):
 
     # Determinar la ubicación base según si estamos ejecutando desde un ejecutable o un script
     if getattr(sys, 'frozen', False):
-        # Estamos ejecutando desde un ejecutable de PyInstaller
-        # Usar el directorio donde está el ejecutable
+
         base_dir = os.path.dirname(sys.executable)
     else:
         # Estamos ejecutando desde el script Python normal
@@ -1052,7 +1106,13 @@ export_vtk_check = ctk.CTkCheckBox(convert_section, text="Export VTK", variable=
 export_vtk_check.select()
 export_vtk_check.pack(pady=5)
 
-# Botones de acción
+# Cleanup option: Cleanup folder after processing
+cleanup_var = tk.BooleanVar(value=True)
+cleanup_check = ctk.CTkCheckBox(convert_section, text="Cleanup folder after processing", variable=cleanup_var)
+cleanup_check.select()
+cleanup_check.pack(pady=5)
+    
+    # Botones de acción
 action_buttons_frame = ctk.CTkFrame(app)
 action_buttons_frame.pack(pady=10, padx=10, fill='x', expand=True)
 
@@ -1106,7 +1166,7 @@ update_telegram_status_label()
 
 # ==================== MSH PROCESSING FUNCTIONS ====================
 
-def find_msh_files(python_file):
+def find_msh_files(python_file, workspace_hint=None):
     """Find MSH files generated by Fossils with enhanced search pattern"""
     base_name = os.path.splitext(os.path.basename(python_file))[0]
     parent_dir = os.path.dirname(python_file)
@@ -1122,6 +1182,14 @@ def find_msh_files(python_file):
     # List of possible locations to search for MSH files
     possible_locations = []
     
+    # 0. Priority: If workspace_hint is provided and exists, use it.
+    if workspace_hint and os.path.isdir(workspace_hint):
+        print(f"🔎 Using workspace hint: {workspace_hint}")
+        possible_locations.append(workspace_hint)
+        # Also add parent + base_name, in case the hint was the original name before rename
+        # But if rename_workspace_folder succeeded, the folder is now 'base_name' in the same parent dir.
+        possible_locations.append(os.path.join(os.path.dirname(workspace_hint), base_name))
+
     # 1. Same folder as python file (original expected location)
     possible_locations.append(os.path.splitext(python_file)[0])
     
@@ -1136,6 +1204,10 @@ def find_msh_files(python_file):
         os.path.join(parent_dir, "workspace"),
         os.path.join(script_dir, "workspace")
     ]
+    
+    # 5. Also search in repo_root/workspace
+    repo_root = os.path.abspath(os.path.join(script_dir, '..'))
+    workspace_dirs.append(os.path.join(repo_root, 'workspace'))
     
     for workspace_dir in workspace_dirs:
         if os.path.exists(workspace_dir):
@@ -1173,6 +1245,7 @@ def find_msh_files(python_file):
             
         mesh_file = os.path.join(folder_path, 'mesh.msh')
         stress_tensor_file = os.path.join(folder_path, 'smooth_stress_tensor.msh')
+        strain_tensor_file = os.path.join(folder_path, 'smooth_strain_tensor.msh')
         force_vector_file = os.path.join(folder_path, 'force_vector.msh')
 
         # Check if all required files exist
@@ -1182,13 +1255,16 @@ def find_msh_files(python_file):
             os.path.exists(force_vector_file)
         ]
         
+        strain_exists = os.path.exists(strain_tensor_file)
+        
         print(f"      📄 mesh.msh: {'✅' if files_exist[0] else '❌'}")
         print(f"      📄 smooth_stress_tensor.msh: {'✅' if files_exist[1] else '❌'}")
+        print(f"      📄 smooth_strain_tensor.msh: {'✅' if strain_exists else '❌'}")
         print(f"      📄 force_vector.msh: {'✅' if files_exist[2] else '❌'}")
 
         if all(files_exist):
-            print(f"   ✅ Found all MSH files in: {folder_path}")
-            return mesh_file, stress_tensor_file, force_vector_file
+            print(f"   ✅ Found MSH files in: {folder_path}")
+            return mesh_file, stress_tensor_file, force_vector_file, strain_tensor_file if strain_exists else None
     
     # If no files found, show what's in the workspace for debugging
     print(f"❌ MSH files not found in any of the {len(unique_locations)} locations checked")
@@ -1214,557 +1290,69 @@ def find_msh_files(python_file):
             except Exception as e:
                 print(f"   Error listing workspace contents: {e}")
     
-    return None, None, None
+    return None, None, None, None
 
-def process_fossils_output(selected_file, export_von_mises=True, export_smooth_stress=True, export_vtk=True):
-    """Process Fossils output MSH files and convert them to CSV/VTK"""
-    if not MSH_PROCESSING_AVAILABLE:
-        print("❌ MSH processing libraries not available. Skipping conversion.")
+def process_fossils_output(selected_file, export_von_mises=True, export_smooth_stress=True, export_vtk=True, workspace_hint=None):
+    """Process Fossils output MSH files and convert them to CSV/VTK by calling Convert_to_csv.py"""
+    
+    # We will invoke Convert_to_csv.py as a subprocess to keep logic separated.
+    # We just need to construct the command.
+    
+    print(f"🔄 Delegating MSH processing for {os.path.basename(selected_file)} to Convert_to_csv.py...")
+    
+    # Locate Convert_to_csv.py
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        
+    script_path = os.path.join(base_dir, 'Convert_to_csv.py')
+    
+    if not os.path.exists(script_path):
+        print(f"❌ Error: Convert_to_csv.py not found at {script_path}")
         return False
+        
+    # Construct arguments
+    # Convert_to_csv.py arguments: directory files... [--flags]
+    # It expects: directory file1 file2 ...
+    directory = os.path.dirname(selected_file)
+    filename = os.path.basename(selected_file)
     
-    # Import required modules at the beginning to avoid scope issues
-    import os
-    import signal
-    import subprocess
-    import tempfile
-    import sys
-    from contextlib import redirect_stderr
-    from io import StringIO
     
-    def initialize_gmsh_safely():
-        """Initialize gmsh with complete cleanup and multiple fallback strategies"""
-        print("🔍 DEBUG: Starting safe gmsh initialization...")
-        
-        # First, try to completely cleanup any existing gmsh instance
-        try:
-            print("🔍 DEBUG: Attempting to cleanup any existing gmsh state...")
-            
-            # Try to access gmsh functions to see if it's initialized
-            try:
-                # Clear all models first
-                model_list = gmsh.model.list()
-                for model_name in model_list:
-                    gmsh.model.setCurrent(model_name)
-                    gmsh.model.remove()
-                print(f"🔍 DEBUG: Removed {len(model_list)} existing models")
-            except:
-                print("🔍 DEBUG: No models to clean")
-            
-            try:
-                # Clear all views
-                view_list = gmsh.view.getTags()
-                for view_tag in view_list:
-                    gmsh.view.remove(view_tag)
-                print(f"🔍 DEBUG: Removed {len(view_list)} existing views")
-                
-                # Additional cleanup for post-processing data
-                gmsh.view.removeAllModels()
-                print("🔍 DEBUG: Cleared all view models")
-            except:
-                print("🔍 DEBUG: No views to clear")
-            
-            try:
-                # Force finalize to completely reset gmsh
-                gmsh.finalize()
-                print("🔍 DEBUG: Existing gmsh instance finalized")
-            except:
-                print("🔍 DEBUG: No existing gmsh instance to finalize")
-                
-        except Exception as e:
-            print(f"🔍 DEBUG: No existing gmsh state to clean: {e}")
-        
-        initialization_successful = False
-        
-        # Strategy 1: Complete signal disabling for PyInstaller
-        try:
-            print("🔍 DEBUG: Trying PyInstaller-compatible initialization...")
-            
-            # Store original signal handlers
-            original_handlers = {}
-            
-            # Completely disable all signal handlers that could conflict
-            for sig in [signal.SIGINT, signal.SIGTERM]:
-                try:
-                    original_handlers[sig] = signal.signal(sig, signal.SIG_IGN)
-                except (ValueError, OSError):
-                    pass  # Signal not available on this platform
-            
-            # Set environment variables to disable gmsh signal handling
-            os.environ['GMSH_NO_SIGNAL'] = '1'
-            os.environ['GMSH_NO_INTERRUPT'] = '1'
-            
-            try:
-                # Initialize with comprehensive signal-free arguments
-                gmsh.initialize([
-                    '-noenv',          # Don't read environment files
-                    '-nopopup',        # No popup windows
-                    '-notty',          # No TTY interaction
-                    '-nosigint',       # No SIGINT handling
-                    '-batch',          # Batch mode
-                    '-nt',             # Non-interactive
-                    '-v', '0'          # Minimal verbosity
-                ])
-                initialization_successful = True
-                print("🔍 DEBUG: PyInstaller-compatible initialization successful")
-            finally:
-                # Restore original signal handlers
-                for sig, handler in original_handlers.items():
-                    try:
-                        signal.signal(sig, handler)
-                    except (ValueError, OSError):
-                        pass
-                
-        except Exception as e:
-            print(f"🔍 DEBUG: PyInstaller-compatible initialization failed: {e}")
-            
-        # Strategy 2: Force-ignore all signal operations  
-        if not initialization_successful:
-            try:
-                print("🔍 DEBUG: Trying force-ignore signal strategy...")
-                
-                # Create a custom signal handler that does nothing
-                def null_handler(signum, frame):
-                    pass
-                
-                # Override signal function temporarily
-                original_signal = signal.signal
-                def disabled_signal(sig, handler):
-                    try:
-                        return original_signal(sig, null_handler)
-                    except:
-                        return signal.SIG_DFL
-                
-                # Temporarily replace signal.signal
-                signal.signal = disabled_signal
-                
-                try:
-                    gmsh.initialize(['-batch', '-nt', '-v', '0'])
-                    initialization_successful = True
-                    print("🔍 DEBUG: Force-ignore signal strategy successful")
-                finally:
-                    # Restore original signal function
-                    signal.signal = original_signal
-                    
-            except Exception as e:
-                print(f"🔍 DEBUG: Force-ignore signal strategy failed: {e}")
-        
-        # Strategy 3: Minimal initialization
-        if not initialization_successful:
-            try:
-                print("🔍 DEBUG: Trying minimal initialization...")
-                gmsh.initialize()
-                initialization_successful = True
-                print("🔍 DEBUG: Minimal initialization successful")
-            except Exception as e:
-                print(f"🔍 DEBUG: Minimal initialization failed: {e}")
-        
-        return initialization_successful
+    cmd = [sys.executable, script_path, directory, filename]
     
+    if export_von_mises:
+        cmd.append("--export-von-mises")
+    if export_smooth_stress:
+        cmd.append("--export-smooth-stress")
+    if export_vtk:
+        cmd.append("--export-vtk")
+    
+    # Pass workspace_hint if available
+    if workspace_hint:
+        cmd.extend(["--workspace-dir", workspace_hint])
+        
     try:
-        mesh_file, stress_tensor_file, force_vector_file = find_msh_files(selected_file)
+        # Run the subprocess
+        print(f"🔍 DEBUG: Executing: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
         
-        if not all([mesh_file, stress_tensor_file, force_vector_file]):
-            print(f"❌ Cannot find required MSH files for {os.path.basename(selected_file)}")
-            return False
+        print("🔍 DEBUG: Convert_to_csv output:")
+        print(result.stdout)
         
-        folder_path = os.path.dirname(mesh_file)
-        print(f"\n🔄 Processing MSH files in {os.path.basename(folder_path)}:")
-        print(f"   📄 mesh.msh: {os.path.exists(mesh_file)}")
-        print(f"   📄 smooth_stress_tensor.msh: {os.path.exists(stress_tensor_file)}")
-        print(f"   📄 force_vector.msh: {os.path.exists(force_vector_file)}")
-
-        print("🔍 DEBUG: Starting gmsh initialization...")
-        
-        # Use safe initialization function
-        if not initialize_gmsh_safely():
-            print("❌ All gmsh initialization strategies failed")
-            print("   This is a known limitation with PyInstaller and gmsh signal handling")
-            return False
-        
-        # If we got here, gmsh was successfully initialized
-        try:
-            # Set options to disable interactive features
-            gmsh.option.setNumber("General.Terminal", 0)
-            gmsh.option.setNumber("General.Verbosity", 1) 
-            gmsh.option.setNumber("General.AbortOnError", 0)
-            # Additional options to prevent signal conflicts
-            gmsh.option.setNumber("General.NoPopup", 1)
-            gmsh.option.setNumber("General.Abort", 0)
+        if result.stderr:
+            print("🔍 DEBUG: Convert_to_csv stderr:")
+            print(result.stderr)
             
-        except Exception as e:
-            print(f"🔍 DEBUG: Warning - failed to set gmsh options: {e}")
-            # Continue anyway, as the main initialization worked
-        
-        print("🔍 DEBUG: gmsh initialized successfully")
-        
-        # Complete cleanup of any existing gmsh state
-        try:
-            print("🔍 DEBUG: Cleaning up existing gmsh state...")
-            # Clear all existing models
-            for model_name in gmsh.model.list():
-                gmsh.model.setCurrent(model_name)
-                gmsh.model.remove()
-            
-            # Clear all existing views
-            for view_tag in gmsh.view.getTags():
-                gmsh.view.remove(view_tag)
-            
-            # Clear any existing post-processing data
-            gmsh.view.removeAllModels()
-            
-            print("🔍 DEBUG: gmsh state cleaned successfully")
-        except Exception as e:
-            print(f"🔍 DEBUG: Warning during gmsh cleanup: {e}")
-        
-        gmsh.model.add("FossilsOutput")
-        print("🔍 DEBUG: gmsh model added successfully")
-        
-        # Load MSH files
-        print("🔍 DEBUG: Loading mesh files...")
-        gmsh.merge(mesh_file)
-        print("🔍 DEBUG: mesh.msh loaded")
-        gmsh.merge(stress_tensor_file)
-        print("🔍 DEBUG: stress_tensor.msh loaded")
-        gmsh.merge(force_vector_file)
-        print("🔍 DEBUG: force_vector.msh loaded")
-        
-        # Debug: Check available views and their data
-        view_tags = gmsh.view.getTags()
-        print(f"🔍 DEBUG: Available views: {view_tags}")
-        
-        for view_tag in view_tags:
-            try:
-                view_name = gmsh.view.getOption(view_tag, "Name")
-                print(f"🔍 DEBUG: View {view_tag}: {view_name}")
-            except:
-                print(f"🔍 DEBUG: View {view_tag}: (name not available)")
-
-        # Get node data
-        nodeTags, nodeCoords, _ = gmsh.model.mesh.getNodes()
-        nodeCoords = np.array(nodeCoords).reshape((-1, 3))
-        nodeData = pd.DataFrame({
-            'NodeTag': nodeTags, 
-            'X': nodeCoords[:, 0], 
-            'Y': nodeCoords[:, 1], 
-            'Z': nodeCoords[:, 2]
-        })
-
-        # Process stress tensor data with robust error handling
-        print("🔍 DEBUG: Processing stress tensor data...")
-        view_tags = gmsh.view.getTags()
-        
-        # Find the stress tensor and force vector views by analyzing data types
-        stress_view_tag = None
-        force_view_tag = None
-        
-        # Analyze each view to determine its data type
-        for view_tag in view_tags:
-            try:
-                dataType, tags, data, time, numComp = gmsh.view.getModelData(view_tag, 0)
-                print(f"🔍 DEBUG: View {view_tag}: dataType={dataType}, numComp={numComp}, data_len={len(data)}")
-                
-                # Heuristic to identify stress vs force data
-                if len(data) > 0 and len(data[0]) >= 6:
-                    # Likely stress tensor data (6 or 9 components)
-                    if stress_view_tag is None:
-                        stress_view_tag = view_tag
-                        print(f"🔍 DEBUG: Identified stress view: {view_tag} (components: {len(data[0])})")
-                elif len(data) > 0 and len(data[0]) <= 3:
-                    # Likely force vector data (1-3 components)
-                    if force_view_tag is None:
-                        force_view_tag = view_tag
-                        print(f"🔍 DEBUG: Identified force view: {view_tag} (components: {len(data[0])})")
-                        
-            except Exception as e:
-                print(f"🔍 DEBUG: Error analyzing view {view_tag}: {e}")
-        
-        # Fallback to simple ordering if heuristics fail
-        if stress_view_tag is None and len(view_tags) >= 1:
-            stress_view_tag = view_tags[0]
-            print("🔍 DEBUG: Using fallback stress view (first available)")
-        
-        if force_view_tag is None and len(view_tags) >= 2:
-            force_view_tag = view_tags[1]
-            print("🔍 DEBUG: Using fallback force view (second available)")
-        
-        if stress_view_tag is None:
-            raise Exception("No stress tensor view found after loading MSH files")
-        
-        print(f"🔍 DEBUG: Final stress view tag: {stress_view_tag}")
-        print(f"🔍 DEBUG: Final force view tag: {force_view_tag}")
-        
-        # Process stress tensor data
-        try:
-            print(f"🔍 DEBUG: Processing stress data from view {stress_view_tag}")
-            dataType, tags, data, time, numComp = gmsh.view.getModelData(stress_view_tag, 0)
-            print(f"🔍 DEBUG: Stress data - dataType: {dataType}, numComp: {numComp}, data length: {len(data)}")
-            
-            # Validate data consistency
-            if len(data) != len(nodeTags):
-                print(f"⚠️ WARNING: Data length mismatch - nodes: {len(nodeTags)}, stress data: {len(data)}")
-                # Try to handle mismatched data lengths
-                if len(data) > len(nodeTags):
-                    print("⚠️ Truncating excess stress data")
-                    data = data[:len(nodeTags)]
-                else:
-                    print("⚠️ Padding missing stress data with zeros")
-                    padding_needed = len(nodeTags) - len(data)
-                    data.extend([[0.0] * len(data[0]) for _ in range(padding_needed)] if data else [[0.0] for _ in range(len(nodeTags))])
-            
-            svms = []
-            for i, sig in enumerate(data):
-                try:
-                    if len(sig) == 9:
-                        # Full tensor format (xx, xy, xz, yx, yy, yz, zx, zy, zz)
-                        [xx, xy, xz, yx, yy, yz, zx, zy, zz] = sig
-                        svm = np.sqrt(((xx - yy) ** 2 + (yy - zz) ** 2 + (zz - xx) ** 2) / 2 + 3 * (xy * xy + yz * yz + zx * zx))
-                    elif len(sig) == 6:
-                        # Symmetric tensor format (xx, yy, zz, xy, yz, zx)
-                        [xx, yy, zz, xy, yz, zx] = sig
-                        svm = np.sqrt(((xx - yy) ** 2 + (yy - zz) ** 2 + (zz - xx) ** 2) / 2 + 3 * (xy * xy + yz * yz + zx * zx))
-                    elif len(sig) == 3:
-                        # Principal stresses format (s1, s2, s3) or already computed von Mises
-                        if numComp == 3:
-                            # Assume this is already von Mises stress
-                            svm = sig[0]  # Take first component as von Mises
-                        else:
-                            # Principal stresses - compute von Mises
-                            [s1, s2, s3] = sig
-                            svm = np.sqrt(((s1 - s2) ** 2 + (s2 - s3) ** 2 + (s3 - s1) ** 2) / 2)
-                    elif len(sig) == 1:
-                        # Single value, likely already computed von Mises stress
-                        svm = sig[0]
-                    else:
-                        print(f"⚠️ Unexpected stress data format at index {i}: {len(sig)} components (expected 1, 3, 6, or 9)")
-                        svm = 0.0  # Default value
-                    
-                    svms.append(svm)
-                except Exception as e:
-                    print(f"⚠️ Error processing stress data at index {i}: {e}")
-                    svms.append(0.0)  # Default value for problematic data
-            
-            svms = np.array(svms)
-            
-            # Ensure correct length
-            if len(svms) != len(nodeTags):
-                print(f"⚠️ Adjusting stress array length from {len(svms)} to {len(nodeTags)}")
-                if len(svms) > len(nodeTags):
-                    svms = svms[:len(nodeTags)]
-                else:
-                    svms = np.pad(svms, (0, len(nodeTags) - len(svms)), 'constant', constant_values=0.0)
-            
-            svmData = pd.DataFrame({'Von mises Stress': svms}, index=nodeTags)
-            print(f"✅ Processed {len(svms)} stress values")
-            
-        except Exception as e:
-            print(f"❌ Error processing stress tensor data: {e}")
-            # Create dummy stress data to continue processing
-            svms = np.zeros(len(nodeTags))
-            svmData = pd.DataFrame({'Von mises Stress': svms}, index=nodeTags)
-            print("⚠️ Using dummy stress data to continue processing")
-
-        # Combine node and stress data
-        nodeData.reset_index(drop=True, inplace=True)
-        svmData.reset_index(drop=True, inplace=True)
-        combinedData = pd.concat([nodeData, svmData], axis=1)
-
-        # Process force vector data
-        forces = np.zeros((len(nodeTags), 3))  # Default to zeros
-        
-        if force_view_tag is not None:
-            try:
-                print(f"🔍 DEBUG: Processing force data from view {force_view_tag}")
-                dataType_force, tags_force, data_force, time_force, numComp_force = gmsh.view.getModelData(force_view_tag, 0)
-                print(f"🔍 DEBUG: Force data - dataType: {dataType_force}, numComp: {numComp_force}, data length: {len(data_force)}")
-                
-                # Validate force data consistency
-                if len(data_force) != len(nodeTags):
-                    print(f"⚠️ WARNING: Force data length mismatch - nodes: {len(nodeTags)}, force data: {len(data_force)}")
-                    # Try to handle mismatched data lengths
-                    if len(data_force) > len(nodeTags):
-                        print("⚠️ Truncating excess force data")
-                        data_force = data_force[:len(nodeTags)]
-                    else:
-                        print("⚠️ Padding missing force data with zeros")
-                        padding_needed = len(nodeTags) - len(data_force)
-                        data_force.extend([[0.0, 0.0, 0.0] for _ in range(padding_needed)])
-                
-                forces = []
-                for i, force in enumerate(data_force):
-                    try:
-                        if len(force) >= 3:
-                            [fx, fy, fz] = force[:3]  # Take first 3 components
-                            forces.append([fx, fy, fz])
-                        elif len(force) == 1:
-                            # Single component, assume it's magnitude
-                            forces.append([force[0], 0.0, 0.0])
-                        else:
-                            print(f"⚠️ Unexpected force data format at index {i}: {len(force)} components (expected 1 or 3+)")
-                            forces.append([0.0, 0.0, 0.0])
-                    except Exception as e:
-                        print(f"⚠️ Error processing force data at index {i}: {e}")
-                        forces.append([0.0, 0.0, 0.0])
-                
-                forces = np.array(forces)
-                
-                # Ensure correct length
-                if len(forces) != len(nodeTags):
-                    print(f"⚠️ Adjusting force array length from {len(forces)} to {len(nodeTags)}")
-                    if len(forces) > len(nodeTags):
-                        forces = forces[:len(nodeTags)]
-                    else:
-                        padding_needed = len(nodeTags) - len(forces)
-                        forces = np.vstack([forces, np.zeros((padding_needed, 3))])
-                
-                print(f"✅ Processed {len(forces)} force vectors")
-                
-            except Exception as e:
-                print(f"❌ Error processing force vector data: {e}")
-                forces = np.zeros((len(nodeTags), 3))
-                print("⚠️ Using dummy force data to continue processing")
+        if result.returncode == 0:
+            print("✅ Convert_to_csv completed successfully")
+            return True
         else:
-            print("⚠️ No force view available, using zero forces")
-        
-        combinedData = pd.concat([combinedData, pd.DataFrame(forces, columns=['Fx', 'Fy', 'Fz'])], axis=1)
-
-        output_folder = folder_path
-
-        # Export smooth stress tensor to CSV
-        if export_smooth_stress:
-            csv_file = os.path.join(output_folder, 'smooth_stress_tensor.csv')
-            combinedData.to_csv(csv_file, index=False)
-            print(f"✅ Smooth stress tensor exported: {os.path.basename(csv_file)}")
-
-        # Export to VTK
-        if export_vtk:
-            print("🔍 DEBUG: Starting VTK export...")
-            points = nodeCoords.reshape(-1, 3)
-            elementTypes, elementTags, nodeTagsPerElement = gmsh.model.mesh.getElements()
-            print("🔍 DEBUG: Got mesh elements from gmsh")
-            cells = []
-            for elementType, nodeTags in zip(elementTypes, nodeTagsPerElement):
-                numNodesPerElement = gmsh.model.mesh.getElementProperties(elementType)[3]
-                for element in nodeTags.reshape(-1, numNodesPerElement):
-                    cells.append(np.insert(element - 1, 0, numNodesPerElement))
-            cellsArray = np.concatenate(cells).astype(np.int_)
-            print("🔍 DEBUG: Creating PyVista mesh...")
-            mesh = pv.PolyData(points, cellsArray)
-            print("🔍 DEBUG: PyVista mesh created successfully")
-            mesh.point_data['Von mises Stress'] = svms
-            mesh.point_data['Forces'] = forces
-            vtk_file_path = os.path.join(output_folder, 'combined_data.vtk')
-            print("🔍 DEBUG: Saving VTK file...")
-            mesh.save(vtk_file_path)
-            print(f"✅ VTK file exported: {os.path.basename(vtk_file_path)}")
-
-        print("🔍 DEBUG: Finalizing gmsh...")
-        
-        # Complete cleanup before finalizing
-        try:
-            print("🔍 DEBUG: Performing complete gmsh cleanup...")
+            print(f"❌ Convert_to_csv failed with code {result.returncode}")
+            return False
             
-            # Clear all models with detailed logging
-            model_list = gmsh.model.list()
-            print(f"🔍 DEBUG: Found {len(model_list)} models to remove")
-            for model_name in model_list:
-                try:
-                    gmsh.model.setCurrent(model_name)
-                    gmsh.model.remove()
-                    print(f"🔍 DEBUG: Removed model: {model_name}")
-                except Exception as e:
-                    print(f"🔍 DEBUG: Error removing model {model_name}: {e}")
-            
-            # Clear all views with detailed logging
-            view_list = gmsh.view.getTags()
-            print(f"🔍 DEBUG: Found {len(view_list)} views to remove")
-            for view_tag in view_list:
-                try:
-                    gmsh.view.remove(view_tag)
-                    print(f"🔍 DEBUG: Removed view: {view_tag}")
-                except Exception as e:
-                    print(f"🔍 DEBUG: Error removing view {view_tag}: {e}")
-            
-            # Clear any post-processing data
-            try:
-                gmsh.view.removeAllModels()
-                print("🔍 DEBUG: Cleared all view models")
-            except Exception as e:
-                print(f"🔍 DEBUG: Error clearing view models: {e}")
-            
-            # Force clear any remaining mesh data
-            try:
-                gmsh.clear()
-                print("🔍 DEBUG: Executed gmsh.clear()")
-            except Exception as e:
-                print(f"🔍 DEBUG: gmsh.clear() not available or failed: {e}")
-            
-            print("🔍 DEBUG: gmsh cleanup completed")
-        except Exception as e:
-            print(f"🔍 DEBUG: Warning during final gmsh cleanup: {e}")
-        
-        try:
-            gmsh.finalize()
-            print("🔍 DEBUG: gmsh finalized successfully")
-        except Exception as e:
-            print(f"🔍 DEBUG: Warning during gmsh finalization: {e}")
-
-        # Export Von Mises stress summary
-        if export_von_mises:
-            export_von_mises_summary(selected_file, combinedData, output_folder)
-
-        return True
-
     except Exception as e:
-        print(f"❌ Error processing MSH files for {os.path.basename(selected_file)}: {e}")
-        try:
-            print("🔍 DEBUG: Cleaning up gmsh after error...")
-            
-            # Complete cleanup after error with detailed logging
-            try:
-                model_list = gmsh.model.list()
-                print(f"🔍 DEBUG: Found {len(model_list)} models to clean after error")
-                for model_name in model_list:
-                    try:
-                        gmsh.model.setCurrent(model_name)
-                        gmsh.model.remove()
-                        print(f"🔍 DEBUG: Removed model after error: {model_name}")
-                    except Exception as model_err:
-                        print(f"🔍 DEBUG: Error removing model {model_name}: {model_err}")
-            except Exception as model_list_err:
-                print(f"🔍 DEBUG: Error getting model list: {model_list_err}")
-            
-            try:
-                view_list = gmsh.view.getTags()
-                print(f"🔍 DEBUG: Found {len(view_list)} views to clean after error")
-                for view_tag in view_list:
-                    try:
-                        gmsh.view.remove(view_tag)
-                        print(f"🔍 DEBUG: Removed view after error: {view_tag}")
-                    except Exception as view_err:
-                        print(f"🔍 DEBUG: Error removing view {view_tag}: {view_err}")
-            except Exception as view_list_err:
-                print(f"🔍 DEBUG: Error getting view list: {view_list_err}")
-            
-            try:
-                gmsh.view.removeAllModels()
-                print("🔍 DEBUG: Cleared all view models after error")
-            except Exception as remove_models_err:
-                print(f"🔍 DEBUG: Error clearing view models: {remove_models_err}")
-            
-            try:
-                gmsh.clear()
-                print("🔍 DEBUG: Executed gmsh.clear() after error")
-            except Exception as clear_err:
-                print(f"🔍 DEBUG: gmsh.clear() not available or failed: {clear_err}")
-            
-            try:
-                gmsh.finalize()
-                print("🔍 DEBUG: gmsh cleanup after error completed")
-            except Exception as finalize_err:
-                print(f"🔍 DEBUG: Error during finalization: {finalize_err}")
-                
-        except Exception as cleanup_error:
-            print(f"🔍 DEBUG: Error during cleanup: {cleanup_error}")
+        print(f"❌ Failed to run Convert_to_csv.py: {e}")
         return False
 
 def export_von_mises_summary(selected_file, combinedData, output_folder):
@@ -1918,8 +1506,12 @@ def process_fixations_data(selected_file, combinedData, results_list, tolerance)
     except Exception as e:
         print(f"   ⚠️  Error processing fixations: {e}")
 
-def rename_workspace_folder(python_file):
-    """Rename the workspace folder to match the Python file name"""
+def rename_workspace_folder(python_file, workspace_hint=None):
+    """Rename the workspace folder to match the Python file name
+    
+    Returns:
+        tuple: (success: bool, renamed_path: str or None) where renamed_path is the final workspace path
+    """
     try:
         base_name = os.path.splitext(os.path.basename(python_file))[0]
         # Get the directory where the executable is running from
@@ -1929,11 +1521,117 @@ def rename_workspace_folder(python_file):
         else:
             # Running as script
             script_dir = os.path.dirname(os.path.abspath(__file__))
-        workspace_dir = os.path.join(script_dir, "workspace")
+        # Candidate workspace directories to search
+        workspace_candidates = []
+
+        # 1) workspace folder next to this script (msh2vtk/workspace)
+        workspace_candidates.append(os.path.join(script_dir, "workspace"))
+
+        # 2) workspace folder in the repo root (parent of script_dir)
+        repo_root = os.path.abspath(os.path.join(script_dir, '..'))
+        workspace_candidates.append(os.path.join(repo_root, 'workspace'))
+
+        # 3) workspace folder next to the python file's directory
+        python_parent = os.path.dirname(python_file)
+        workspace_candidates.append(os.path.join(python_parent, 'workspace'))
+
+        # 4) if Fossils printed an explicit workspace path, include its parent
+        if workspace_hint:
+            # If hint is a folder path that already contains the run folder, use it directly
+            # We don't just search the parent, we consider the hint itself might be the target
+            workspace_candidates.append(os.path.dirname(workspace_hint))
+
+        # Normalize and deduplicate
+        seen = set()
+        workspace_candidates_norm = []
+        for p in workspace_candidates:
+            try:
+                pn = os.path.normpath(p)
+            except Exception:
+                continue
+            if pn not in seen:
+                seen.add(pn)
+                workspace_candidates_norm.append(pn)
+
+        # Find folders that might be the output from this python file
+        target_folder = None
+        longest_match = 0
+
+        # If the Fossils stdout contained an explicit workspace path and it exists, prefer it
+        if workspace_hint and os.path.isdir(workspace_hint):
+            # Verify if it seems related
+            if base_name.lower() in os.path.basename(workspace_hint).lower() or \
+               base_name.lower() in workspace_hint.lower() or \
+               any(word in os.path.basename(workspace_hint).lower() for word in base_name.lower().split('_') if len(word) > 3):
+                target_folder = workspace_hint
+                print(f"🔎 Using workspace from Fossils output: {target_folder}")
+
+        # Otherwise scan candidate workspace directories
+        if not target_folder:
+            for workspace_dir in workspace_candidates_norm:
+                if not os.path.exists(workspace_dir):
+                    # skip non-existing candidate
+                    continue
+                try:
+                    for folder_name in os.listdir(workspace_dir):
+                        folder_path = os.path.join(workspace_dir, folder_name)
+                        if os.path.isdir(folder_path):
+                            # Look for folders that contain parts of the base name
+                            if base_name.lower() in folder_name.lower():
+                                match_length = len(base_name)
+                                if match_length > longest_match:
+                                    longest_match = match_length
+                                    target_folder = folder_path
+                            elif any(word in folder_name.lower() for word in base_name.lower().split('_') if len(word) > 3):
+                                # Check for word matches in underscored names
+                                words_matched = sum(1 for word in base_name.lower().split('_') if len(word) > 3 and word in folder_name.lower())
+                                if words_matched > longest_match:
+                                    longest_match = words_matched
+                                    target_folder = folder_path
+                except Exception as e:
+                    print(f"   ⚠️  Error scanning workspace directory {workspace_dir}: {e}")
         
-        if not os.path.exists(workspace_dir):
-            print(f"⚠️  Workspace directory not found: {workspace_dir}")
-            return False
+        if target_folder:
+            expected_folder_name = base_name
+            expected_folder_path = os.path.join(os.path.dirname(target_folder), expected_folder_name)
+            
+            # Only rename if it's not already correctly named
+            if os.path.basename(target_folder) != expected_folder_name:
+                # If target already exists, remove it first
+                if os.path.exists(expected_folder_path):
+                    print(f"🗑️  Removing existing folder: {expected_folder_path}")
+                    import shutil
+                    shutil.rmtree(expected_folder_path)
+                
+                print(f"📁 Renaming workspace folder:")
+                print(f"   From: {os.path.basename(target_folder)}")
+                print(f"   To: {expected_folder_name}")
+                
+                os.rename(target_folder, expected_folder_path)
+                print(f"✅ Workspace folder renamed successfully")
+                return True, expected_folder_path
+            else:
+                print(f"✅ Workspace folder already has correct name: {expected_folder_name}")
+                return True, expected_folder_path
+        else:
+            print(f"⚠️  Could not find workspace folder for: {base_name}")
+            # List available folders for debugging from all candidate workspace locations
+            print("📂 Available workspace folders (scanned locations):")
+            for candidate in workspace_candidates_norm:
+                try:
+                    if os.path.exists(candidate):
+                        print(f"   Location: {candidate}")
+                        for folder_name in os.listdir(candidate):
+                            folder_path = os.path.join(candidate, folder_name)
+                            if os.path.isdir(folder_path):
+                                print(f"      📂 {folder_name}")
+                except Exception as e:
+                    print(f"   ⚠️  Error listing candidate {candidate}: {e}")
+            return False, None
+            
+    except Exception as e:
+        print(f"❌ Error renaming workspace folder for {os.path.basename(python_file)}: {e}")
+        return False, None
         
         # Find folders that might be the output from this python file
         target_folder = None

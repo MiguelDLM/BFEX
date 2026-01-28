@@ -203,3 +203,5 @@ msh2vtk/.dockerignore
 # Configuration files with sensitive data
 msh2vtk/fossils_config.json
 msh2vtk/telegram_config.json
+
+fossils_config.json
