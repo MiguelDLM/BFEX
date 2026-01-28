@@ -805,21 +805,19 @@ def run_fossils(fossils_path, file):
             else:
                 print(f"⚠️  Workspace folder rename failed for: {os.path.basename(file)}")
             
-            # Process MSH files automatically if libraries are available and Export VTK is enabled
+            # Process MSH files automatically if libraries are available and at least ONE export is enabled
             should_auto_convert = False
             try:
-                # We need to access the checkbox variable. 
-                # Since we are in a thread, direct access might be unsafe but `get()` on BooleanVar 
-                # is generally thread-safe in CPython for reading (Tcl is thread-specific but Tkinter wraps it).
-                # However, safe approach is usually `app.after` with a queue, but here we need the value now.
-                # Given the context of this script, reading the variable is the standard way.
-                # Note: `export_vtk_var` is the unified toggle.
-                should_auto_convert = bool(export_vtk_var.get())
+                # We want to run processing if ANY export is requested, because even "Clean" depends on knowing what to keep
+                export_vtk_on = bool(export_vtk_var.get())
+                export_csv_on = bool(export_smooth_stress_var.get())
+                export_summary_on = bool(export_von_mises_var.get())
+                cleanup_on = bool(cleanup_var.get())
+                
+                # Logic: Run if any export is requested, OR if cleanup is requested (to perform safety check inside)
+                should_auto_convert = export_vtk_on or export_csv_on or export_summary_on or cleanup_on
             except Exception:
-                # Fallback if variable access fails
-                should_auto_convert = True # Default to True or False? 
-                # Ideally default to what was configured. Let's assume True if we can't read it?
-                # Or False to be safe.
+                # Fallback
                 should_auto_convert = True
 
             if MSH_PROCESSING_AVAILABLE and should_auto_convert:
@@ -857,7 +855,7 @@ def run_fossils(fossils_path, file):
                     print(f"❌ Error during MSH processing for {os.path.basename(file)}: {e}")
             else:
                 if not should_auto_convert:
-                    print(f"⚪ Auto-convert disabled (Export VTK unchecked); skipping MSH processing for: {os.path.basename(file)}")
+                    print(f"⚪ Post-processing skipped (No exports selected) for: {os.path.basename(file)}")
                 else:
                     print(f"⚠️ MSH processing skipped (libraries not available) for: {os.path.basename(file)}")
             
@@ -1097,7 +1095,7 @@ export_von_mises_check.select()
 export_von_mises_check.pack(pady=5)
 
 export_smooth_stress_var = tk.BooleanVar(value=True)
-export_smooth_stress_check = ctk.CTkCheckBox(convert_section, text="Export Stress and Forces (CSV)", variable=export_smooth_stress_var)
+export_smooth_stress_check = ctk.CTkCheckBox(convert_section, text="Export CSV (All results)", variable=export_smooth_stress_var)
 export_smooth_stress_check.select()
 export_smooth_stress_check.pack(pady=5)
 

@@ -277,6 +277,39 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
                     if 'Fx' not in combinedData.columns:
                         combinedData = pd.concat([combinedData, force_df], axis=1)
 
+            # --- EXPORT INDIVIDUAL CSV IF REQUESTED ---
+            if export_smooth_stress: # Mapped to "Export CSV" checkbox
+                try:
+                    # Construct individual dataframe for this view
+                    view_df = nodeData.copy() # Start with nodes
+                    
+                    # Add data columns
+                    if numComp == 1:
+                        view_df[clean_name] = full_data.flatten()
+                    elif numComp == 3:
+                        for i, suffix in enumerate(['X', 'Y', 'Z']):
+                            view_df[f"{clean_name}_{suffix}"] = full_data[:, i]
+                        # Add Magnitude for convenience
+                        if 'mag' in locals():
+                            view_df[f"{clean_name}_Magnitude"] = mag
+                    elif numComp == 9:
+                        # Tensor components
+                        for i in range(9):
+                             view_df[f"{clean_name}_{i}"] = full_data[:, i]
+                        # Von Mises if computed
+                        if 'j2' in locals():
+                            view_df[f"{clean_name}_VonMises"] = j2
+                    else:
+                        # Generic components
+                        for i in range(numComp):
+                            view_df[f"{clean_name}_{i}"] = full_data[:, i]
+
+                    csv_name = f"{clean_name}.csv"
+                    view_df.to_csv(os.path.join(output_folder, csv_name), index=False)
+                    print(f"Saved individual CSV: {csv_name}")
+                except Exception as e:
+                    print(f"Error saving CSV for {clean_name}: {e}")
+
     # Save VTK
     if export_vtk:
         vtk_path = os.path.join(output_folder, 'combined_data.vtk')
@@ -286,8 +319,9 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
     # CSV Exports (using combinedData)
     combinedData = combinedData.loc[:, ~combinedData.columns.duplicated()]
     
-    if export_smooth_stress:
-        combinedData.to_csv(os.path.join(output_folder, 'smooth_stress_tensor.csv'), index=False)
+    # if export_smooth_stress:
+    #     # results.csv no longer needed per user request
+    #     pass
         
     if export_von_mises and 'Von mises Stress' in combinedData.columns:
          export_von_mises_summary(selected_file, combinedData, output_folder)
@@ -296,19 +330,55 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
     # but Convert_to_csv.py is called as a subprocess per file, so finalize is fine.
     gmsh.finalize()
 
+    # Validate if any export actually happened to enforce safety
+    # We shouldn't cleanup if the user requested cleanup but no exports were active (safety first)
+    any_export_performed = export_vtk or export_smooth_stress or export_von_mises
+
     # Cleanup
     if cleanup:
+        if not any_export_performed:
+            print("Safety: No exports were selected/performed. Skipping cleanup to prevent data loss.")
+            return
+
         try:
             print(f"Cleaning up folder: {output_folder}")
-            keep_exts = ('.msh', '.vtk', '.txt', '.csv', '.tsv', '.vtp', '.ply')
+            # Define exact files to keep based on user requests
+            files_to_keep = {'stdout.txt', 'stderr.txt', 'tocsv.txt', 'post.txt'} # Always keep logs
+            
+            if export_vtk:
+                files_to_keep.add('combined_data.vtk')
+                
+            if export_von_mises:
+                files_to_keep.add('von_mises_stress_results.csv')
+                
+            if export_smooth_stress: # Acts as "Export CSV"
+                # files_to_keep.add('results.csv') # No longer generated
+                # We need to allow all generated view CSVs. 
+                # Since we don't have the list here easily without scanning or passing it,
+                # let's allow all .csv files if this option is enabled, 
+                # OR re-scan the folder and keep any CSV that isn't 'von_mises_stress_results.csv' (which is handled separately).
+                # Actually, simplest is to just allow *.csv if this is True.
+                pass 
+                
             for filename in os.listdir(output_folder):
-                file_path = os.path.join(output_folder, filename)
-                if os.path.isfile(file_path):
-                    if not filename.lower().endswith(keep_exts):
+                # Never delete python scripts if they happen to be here
+                if filename.endswith(".py"): 
+                    continue
+                    
+                # Special handling for CSVs if Export CSV is ON
+                if export_smooth_stress and filename.endswith(".csv"):
+                    continue
+                    
+                # Delete anything not in the allowlist
+                if filename not in files_to_keep:
+                    file_path = os.path.join(output_folder, filename)
+                    if os.path.isfile(file_path):
                         try:
                             os.remove(file_path)
+                            # print(f"Deleted: {filename}")
                         except: pass
-        except: pass
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
 
 def export_von_mises_summary(selected_file, combinedData, output_folder):
     try:
