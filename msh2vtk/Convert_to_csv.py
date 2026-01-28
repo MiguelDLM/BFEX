@@ -74,6 +74,28 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
 
     # Load all other .msh files (Universal Integration)
     loaded_files = {os.path.abspath(mesh_file)}
+    view_source_filenames = {}
+
+    def robust_merge(fpath):
+        if os.path.abspath(fpath) in loaded_files:
+            return
+        
+        pre_tags = set(gmsh.view.getTags())
+        try:
+            gmsh.merge(fpath)
+            loaded_files.add(os.path.abspath(fpath))
+            print(f"Merged {os.path.basename(fpath)}")
+            
+            post_tags = set(gmsh.view.getTags())
+            new_tags = post_tags - pre_tags
+            
+            # Record filename for these views
+            base_name = os.path.splitext(os.path.basename(fpath))[0]
+            for tag in new_tags:
+                view_source_filenames[tag] = base_name
+                
+        except Exception as e:
+            print(f"Error merging {fpath}: {e}")
     
     # Check post.opt first (priority)
     post_opt = os.path.join(folder_path, "post.opt")
@@ -84,13 +106,8 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
                 matches = re.findall(r'View\[.+\]\.FileName = "(.+)";', content)
                 for m in matches:
                     fpath = os.path.join(folder_path, m) if not os.path.isabs(m) else m
-                    if os.path.exists(fpath) and os.path.abspath(fpath) not in loaded_files:
-                        try:
-                            gmsh.merge(fpath)
-                            loaded_files.add(os.path.abspath(fpath))
-                            print(f"Merged {os.path.basename(fpath)}")
-                        except Exception as e:
-                            print(f"Error merging {fpath}: {e}")
+                    if os.path.exists(fpath):
+                        robust_merge(fpath)
         except Exception as e:
             print(f"Error reading post.opt: {e}")
 
@@ -98,13 +115,7 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
     for f in os.listdir(folder_path):
         if f.endswith('.msh'):
             fpath = os.path.join(folder_path, f)
-            if os.path.abspath(fpath) not in loaded_files:
-                try:
-                    gmsh.merge(fpath)
-                    loaded_files.add(os.path.abspath(fpath))
-                    print(f"Merged {f}")
-                except:
-                    pass
+            robust_merge(fpath)
 
     # Extract Nodes
     nodeTags, nodeCoords, _ = gmsh.model.mesh.getNodes()
@@ -167,10 +178,13 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
     views = gmsh.view.getTags()
     
     for vtag in views:
-        try:
-            vname = gmsh.view.getName(vtag)
-        except:
-            vname = f"View_{vtag}"
+        if vtag in view_source_filenames:
+            vname = view_source_filenames[vtag]
+        else:
+            try:
+                vname = gmsh.view.getName(vtag)
+            except:
+                vname = f"View_{vtag}"
             
         clean_name = os.path.basename(vname).replace('.msh', '')
         
