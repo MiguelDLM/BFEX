@@ -7,235 +7,310 @@ import pyvista as pv
 from pyvista import _vtk as vtk
 import argparse
 import sys
-#import cupy as cp
+import re
 
-def find_msh_files(python_file, workspace_hint=None):
+def gmsh_to_vtk_type(gmsh_type):
+    # Mapping Gmsh element types to VTK cell types
+    mapping = {
+        1: 3,   # 2-node line -> VTK_LINE
+        2: 5,   # 3-node triangle -> VTK_TRIANGLE
+        3: 9,   # 4-node quadrangle -> VTK_QUAD
+        4: 10,  # 4-node tetrahedron -> VTK_TETRA
+        5: 12,  # 8-node hexahedron -> VTK_HEXAHEDRON
+        6: 13,  # 6-node prism -> VTK_WEDGE
+        7: 14,  # 5-node pyramid -> VTK_PYRAMID
+        15: 1,  # 1-node point -> VTK_VERTEX
+    }
+    return mapping.get(gmsh_type, 0)
+
+def find_msh_folder(python_file, workspace_hint=None):
     folder_path = os.path.splitext(python_file)[0]
     
-    # Strategy to find the correct folder:
-    # 1. If workspace_hint is provided, check if MSH files are there
+    # 1. Workspace hint
     if workspace_hint and os.path.isdir(workspace_hint):
         if os.path.exists(os.path.join(workspace_hint, 'mesh.msh')):
-            folder_path = workspace_hint
+            return workspace_hint
             
-    # 2. Check the default location (same name as script, same dir)
-    mesh_file = os.path.join(folder_path, 'mesh.msh')
-    
-    # 3. If not found, check if it's in a 'workspace' subdirectory (common pattern)
-    if not os.path.exists(mesh_file):
-        base_name = os.path.splitext(os.path.basename(python_file))[0]
-        parent_dir = os.path.dirname(python_file)
+    # 2. Default location
+    if os.path.exists(os.path.join(folder_path, 'mesh.msh')):
+        return folder_path
         
-        # Check ../workspace/base_name (relative to script)
-        alt_path = os.path.join(parent_dir, 'workspace', base_name)
-        if os.path.exists(os.path.join(alt_path, 'mesh.msh')):
-            folder_path = alt_path
-            
-        # Check ../../workspace/base_name (relative to script, if script is in model folder)
-        # This covers cases where repo structure is more complex
-        alt_path_2 = os.path.join(parent_dir, '..', 'workspace', base_name)
-        if os.path.exists(os.path.join(alt_path_2, 'mesh.msh')):
-            folder_path = alt_path_2
-            
-    mesh_file = os.path.join(folder_path, 'mesh.msh')
-    stress_tensor_file = os.path.join(folder_path, 'smooth_stress_tensor.msh')
-    strain_tensor_file = os.path.join(folder_path, 'smooth_strain_tensor.msh')
-    force_vector_file = os.path.join(folder_path, 'force_vector.msh')
-
-    # Strain file might be optional or new, but user asked for it. 
-    # We will return it if it exists, or handle it in process_file.
-    # For now, let's assume if the basic ones exist, we return what we have.
+    # 3. Workspace subdirs
+    base_name = os.path.splitext(os.path.basename(python_file))[0]
+    parent_dir = os.path.dirname(python_file)
     
-    if os.path.exists(mesh_file) and os.path.exists(stress_tensor_file) and os.path.exists(force_vector_file):
-        return mesh_file, stress_tensor_file, force_vector_file, strain_tensor_file
-    else:
-        print(f"Error: MSH files not found in the {folder_path} folder.")
-        print(f"Checked path: {folder_path}")
-        print("Exiting.")
-        sys.exit(1)
+    alt_path = os.path.join(parent_dir, 'workspace', base_name)
+    if os.path.exists(os.path.join(alt_path, 'mesh.msh')):
+        return alt_path
         
+    alt_path_2 = os.path.join(parent_dir, '..', 'workspace', base_name)
+    if os.path.exists(os.path.join(alt_path_2, 'mesh.msh')):
+        return alt_path_2
+        
+    return None
 
 def process_file(selected_file, export_von_mises, export_smooth_stress, export_vtk, cleanup=True, workspace_hint=None):
-    gmsh.initialize()
+    if not gmsh.isInitialized():
+        gmsh.initialize()
 
-    folder_path = os.path.splitext(selected_file)[0]
-    mesh_file, stress_tensor_file, force_vector_file, strain_tensor_file = find_msh_files(selected_file, workspace_hint)
-    folder_path = os.path.dirname(mesh_file) # Update folder path to where files actually are
+    folder_path = find_msh_folder(selected_file, workspace_hint)
+    if not folder_path:
+        print(f"Error: MSH files (mesh.msh) not found for {selected_file}")
+        # Only exit if strict, but let's try to be helpful
+        # gmsh.finalize() # Don't finalize if we want to process next file in main loop? 
+        # But here process_file is called per file.
+        return
 
-    print(f"\nUsing the MSH files in the {os.path.basename(folder_path)} folder:")
-    print(f" - mesh.msh: {mesh_file}")
-    print(f" - smooth_stress_tensor.msh: {stress_tensor_file}")
-    print(f" - force_vector.msh: {force_vector_file}")
-    if strain_tensor_file and os.path.exists(strain_tensor_file):
-        print(f" - smooth_strain_tensor.msh: {strain_tensor_file}")
-
-    gmsh.merge(mesh_file)
-    gmsh.merge(stress_tensor_file)
-    gmsh.merge(force_vector_file)
-    
-    # Load strain tensor if available (this will likely be view 3)
-    has_strain = False
-    if strain_tensor_file and os.path.exists(strain_tensor_file):
-        gmsh.merge(strain_tensor_file)
-        has_strain = True
-
-    nodeTags, nodeCoords, _ = gmsh.model.mesh.getNodes()
-    nodeCoords = np.array(nodeCoords).reshape((-1, 3))
-    nodeData = pd.DataFrame({'NodeTag': nodeTags, 'X': nodeCoords[:, 0], 'Y': nodeCoords[:, 1], 'Z': nodeCoords[:, 2]})
-
-    # Process Stress (View 0 or Tag 1?)
-    # gmsh.view.getModelData(tag, timestep)
-    # Tags usually start at 0 or 1 depending on version, but previous code used 1.
-    # We should probably robustly find tags.
-    # But sticking to previous logic: View 1 is Stress.
-    dataType, tags, data, time, numComp = gmsh.view.getModelData(1, 0)
-    svms = []
-    for sig in data:
-        [xx, xy, xz, yx, yy, yz, zx, zy, zz] = sig
-        svm = np.sqrt(((xx - yy) ** 2 + (yy - zz) ** 2 + (zz - xx) ** 2) / 2 + 3 * (xy * xy + yz * yz + zx * zx))
-        svms.append(svm)
-    svms = np.array(svms)
-    svmData = pd.DataFrame({'Von mises Stress': svms}, index=nodeTags)
-
-    nodeData.reset_index(drop=True, inplace=True)
-    svmData.reset_index(drop=True, inplace=True)
-    combinedData = pd.concat([nodeData, svmData], axis=1)
-
-    # Process Force (View 2)
-    dataType_force, tags_force, data_force, time_force, numComp_force = gmsh.view.getModelData(2, 0)
-    forces = []
-    for force in data_force:
-        [fx, fy, fz] = force
-        forces.append([fx, fy, fz])
-    forces = np.array(forces)
-    combinedData = pd.concat([combinedData, pd.DataFrame(forces, columns=['Fx', 'Fy', 'Fz'])], axis=1)
-    
-    # Process Strain: support scalar nodal fields (example script) and tensor fields
-    # Prefer getHomogeneousModelData when available; align data by tags
-    # Prepare default equivalent_strains (zeros) so it's always defined
-    equivalent_strains = np.zeros(len(nodeTags))
-    if has_strain:
-        try:
-            view_tags = gmsh.view.getTags()
-            strain_view_tag = view_tags[-1]
-
-            # try homogeneous getter first (returns nice numpy arrays), fallback to getModelData
-            try:
-                dataType_strain, tags_strain, data_strain, time_strain, numComp_strain = gmsh.view.getHomogeneousModelData(strain_view_tag, 0)
-                # If homogeneous and multiple components, data is flat. Reshape it.
-                if numComp_strain > 1 and len(data_strain) == len(tags_strain) * numComp_strain:
-                     data_strain = np.array(data_strain).reshape((len(tags_strain), numComp_strain))
-            except Exception:
-                dataType_strain, tags_strain, data_strain, time_strain, numComp_strain = gmsh.view.getModelData(strain_view_tag, 0)
-
-            # robustly detect scalar field: numComp==1
-            is_scalar_field = (numComp_strain == 1)
-
-            if is_scalar_field:
-                # normalize scalar list
-                scalars = np.array([float(d) if np.isscalar(d) else float(d[0]) for d in data_strain])
-                strain_df = pd.DataFrame({'strain_scalar': scalars}, index=tags_strain)
-                strain_df = strain_df.reindex(nodeTags).reset_index(drop=True)
-                combinedData = pd.concat([combinedData, strain_df], axis=1)
-                equivalent_strains = strain_df['strain_scalar'].to_numpy()
-            else:
-                # Treat as tensor-like data (6 or 9 components) and compute principal strains
-                e1s = []
-                e2s = []
-                e3s = []
-                eqs = []
-                for s in data_strain:
-                    # if s is a scalar-like (defensive), treat as zeros
-                    if np.isscalar(s):
-                        mat = np.zeros((3, 3))
-                    else:
-                        # support both 9-component and 6-component representations
-                        try:
-                            if len(s) == 9:
-                                xx, xy, xz, yx, yy, yz, zx, zy, zz = s
-                                xy_s = 0.5 * (xy + yx)
-                                xz_s = 0.5 * (xz + zx)
-                                yz_s = 0.5 * (yz + zy)
-                                mat = np.array([[xx, xy_s, xz_s], [xy_s, yy, yz_s], [xz_s, yz_s, zz]])
-                            elif len(s) == 6:
-                                # expected: [xx, yy, zz, xy, yz, zx]
-                                xx, yy, zz, xy, yz, zx = s
-                                mat = np.array([[xx, xy, zx], [xy, yy, yz], [zx, yz, zz]])
-                            elif len(s) == 3:
-                                vals = np.array(sorted(s))
-                                e1s.append(vals[0]); e2s.append(vals[1]); e3s.append(vals[2])
-                                sum_diffs = (vals[0]-vals[1])**2 + (vals[1]-vals[2])**2 + (vals[2]-vals[0])**2
-                                eq = (np.sqrt(2.0)/3.0) * np.sqrt(sum_diffs)
-                                eqs.append(eq)
-                                continue
-                            else:
-                                mat = np.zeros((3, 3))
-                        except Exception:
-                            mat = np.zeros((3, 3))
-
-                    vals = np.linalg.eigh(mat)[0]
-                    vals = np.sort(np.real(vals))
-                    e1s.append(vals[0]); e2s.append(vals[1]); e3s.append(vals[2])
-
-                    # equivalent strain (von Mises-like) from principal strains using correct factor
-                    sum_diffs = (vals[0]-vals[1])**2 + (vals[1]-vals[2])**2 + (vals[2]-vals[0])**2
-                    eq = (np.sqrt(2.0)/3.0) * np.sqrt(sum_diffs)
-                    eqs.append(eq)
-
-                e1s = np.array(e1s); e2s = np.array(e2s); e3s = np.array(e3s); eqs = np.array(eqs)
-
-                # When processing tensor data, the length should match the number of nodes
-                # Create DataFrame without index first, then ensure it matches nodeTags length
-                if len(e1s) == len(nodeTags):
-                    strain_df = pd.DataFrame({
-                        'strain_e1': e1s, 
-                        'strain_e2': e2s, 
-                        'strain_e3': e3s, 
-                        'Equivalent Strain': eqs
-                    })
-                    combinedData = pd.concat([combinedData, strain_df], axis=1)
-                    equivalent_strains = eqs
-                else:
-                    print(f"Warning: Strain data length ({len(e1s)}) doesn't match node count ({len(nodeTags)}). Using zeros.")
-                    equivalent_strains = np.zeros(len(nodeTags))
-        except Exception as e:
-            print(f"Error processing strain data: {e}")
-            equivalent_strains = np.zeros(len(nodeTags))
-
+    print(f"\nProcessing results in: {folder_path}")
     output_folder = folder_path
 
+    # Load Mesh
+    mesh_file = os.path.join(folder_path, 'mesh.msh')
+    try:
+        gmsh.merge(mesh_file)
+    except Exception as e:
+        print(f"Error merging mesh: {e}")
+        return
+
+    # Load all other .msh files (Universal Integration)
+    loaded_files = {os.path.abspath(mesh_file)}
+    
+    # Check post.opt first (priority)
+    post_opt = os.path.join(folder_path, "post.opt")
+    if os.path.exists(post_opt):
+        try:
+            with open(post_opt, 'r') as f:
+                content = f.read()
+                matches = re.findall(r'View\[.+\]\.FileName = "(.+)";', content)
+                for m in matches:
+                    fpath = os.path.join(folder_path, m) if not os.path.isabs(m) else m
+                    if os.path.exists(fpath) and os.path.abspath(fpath) not in loaded_files:
+                        try:
+                            gmsh.merge(fpath)
+                            loaded_files.add(os.path.abspath(fpath))
+                            print(f"Merged {os.path.basename(fpath)}")
+                        except Exception as e:
+                            print(f"Error merging {fpath}: {e}")
+        except Exception as e:
+            print(f"Error reading post.opt: {e}")
+
+    # Scan directory for any other .msh files
+    for f in os.listdir(folder_path):
+        if f.endswith('.msh'):
+            fpath = os.path.join(folder_path, f)
+            if os.path.abspath(fpath) not in loaded_files:
+                try:
+                    gmsh.merge(fpath)
+                    loaded_files.add(os.path.abspath(fpath))
+                    print(f"Merged {f}")
+                except:
+                    pass
+
+    # Extract Nodes
+    nodeTags, nodeCoords, _ = gmsh.model.mesh.getNodes()
+    if len(nodeTags) == 0:
+        print("No nodes found.")
+        return
+
+    # Create mapping for nodes
+    # Check if contiguous for optimization
+    min_tag = np.min(nodeTags)
+    max_tag = np.max(nodeTags)
+    is_contiguous = (min_tag == 1 and max_tag == len(nodeTags))
+    
+    if is_contiguous:
+        nodes_map = None
+    else:
+        nodes_map = {tag: i for i, tag in enumerate(nodeTags)}
+        
+    points = np.array(nodeCoords).reshape(-1, 3)
+    
+    # Initialize combinedData for CSV exports
+    nodeData = pd.DataFrame({'NodeTag': nodeTags, 'X': points[:, 0], 'Y': points[:, 1], 'Z': points[:, 2]})
+    combinedData = nodeData.copy()
+    
+    # Prepare VTK Grid
+    cells_list = []
+    cell_types = []
+    elem_types = gmsh.model.mesh.getElementTypes()
+    
+    for etype in elem_types:
+        etags, enodes = gmsh.model.mesh.getElementsByType(etype)
+        if len(etags) == 0: continue
+        props = gmsh.model.mesh.getElementProperties(etype)
+        n_nodes = props[3]
+        enodes = np.array(enodes).reshape(-1, n_nodes)
+        
+        # Map nodes
+        if is_contiguous:
+            mapped_nodes = enodes - 1
+        else:
+            flat_enodes = enodes.flatten()
+            mapped_flat = np.array([nodes_map.get(t, -1) for t in flat_enodes])
+            mapped_nodes = mapped_flat.reshape(-1, n_nodes)
+        
+        if np.any(mapped_nodes == -1):
+            continue # Skip elements with missing nodes
+            
+        padding = np.full((mapped_nodes.shape[0], 1), n_nodes)
+        cells_chunk = np.hstack((padding, mapped_nodes)).flatten()
+        cells_list.append(cells_chunk.astype(int))
+        cell_types.append(np.full(len(etags), gmsh_to_vtk_type(etype)))
+        
+    if cells_list:
+        grid = pv.UnstructuredGrid(np.concatenate(cells_list), np.concatenate(cell_types), points)
+    else:
+        # Fallback to points only if no elements
+        grid = pv.PolyData(points)
+
+    # Process Views
+    views = gmsh.view.getTags()
+    
+    for vtag in views:
+        try:
+            vname = gmsh.view.getName(vtag)
+        except:
+            vname = f"View_{vtag}"
+            
+        clean_name = os.path.basename(vname).replace('.msh', '')
+        
+        # Get Data
+        try:
+            dataType, tags, data, time, numComp = gmsh.view.getHomogeneousModelData(vtag, 0)
+        except:
+            try:
+                dataType, tags, data, time, numComp = gmsh.view.getModelData(vtag, 0)
+            except:
+                continue
+                
+        if len(data) == 0: continue
+        
+        data_arr = np.array(data)
+        if len(data_arr) == len(tags) * numComp:
+            data_arr = data_arr.reshape(-1, numComp)
+            
+        if dataType == "NodeData":
+            full_data = np.full((len(nodeTags), numComp), np.nan)
+            
+            if is_contiguous:
+                indices = np.array(tags, dtype=int) - 1
+                mask = (indices >= 0) & (indices < len(nodeTags))
+                if np.any(mask):
+                    full_data[indices[mask]] = data_arr[mask]
+            else:
+                valid_indices = []
+                valid_data_indices = []
+                for i, tag in enumerate(tags):
+                    idx = nodes_map.get(tag)
+                    if idx is not None:
+                        valid_indices.append(idx)
+                        valid_data_indices.append(i)
+                if valid_indices:
+                    full_data[valid_indices] = data_arr[valid_data_indices]
+            
+            # Add to VTK
+            if numComp == 1:
+                grid.point_data[clean_name] = full_data.flatten()
+            else:
+                grid.point_data[clean_name] = full_data
+                
+            # Special Handling for known types (for CSV/Summary)
+            # Von Mises (9 components)
+            if numComp == 9:
+                try:
+                    xx = full_data[:, 0]; xy = full_data[:, 1]; xz = full_data[:, 2]
+                    yx = full_data[:, 3]; yy = full_data[:, 4]; yz = full_data[:, 5]
+                    zx = full_data[:, 6]; zy = full_data[:, 7]; zz = full_data[:, 8]
+                    
+                    j2 = np.sqrt( ((xx-yy)**2 + (yy-zz)**2 + (zz-xx)**2 )/2 + 3*(xy*xy+yz*yz+zx*zx) )
+                    
+                    grid.point_data[f"{clean_name}_VonMises"] = j2
+                    
+                    # Update combinedData for Summary if this looks like stress or if it's the only tensor
+                    # Heuristic: if name contains 'stress'
+                    if "stress" in clean_name.lower():
+                         svmData = pd.DataFrame({'Von mises Stress': j2}, index=nodeTags)
+                         # Combine properly (avoid duplicate columns if already exists)
+                         if 'Von mises Stress' in combinedData.columns:
+                             combinedData['Von mises Stress'] = j2 # Overwrite or rename?
+                         else:
+                             combinedData = pd.concat([combinedData, svmData], axis=1)
+                         
+                         if export_smooth_stress:
+                             stress_cols = [f'stress_{i}' for i in range(9)]
+                             stress_df = pd.DataFrame(full_data, columns=stress_cols, index=nodeTags)
+                             combinedData = pd.concat([combinedData, stress_df], axis=1)
+
+                    elif "strain" in clean_name.lower():
+                         # Add strain components to VTK as scalars too (requested in original code)
+                         grid.point_data['strain_xx'] = xx
+                         grid.point_data['strain_yy'] = yy
+                         grid.point_data['strain_zz'] = zz
+                         grid.point_data['strain_xy'] = xy
+                         grid.point_data['strain_xz'] = xz
+                         grid.point_data['strain_yz'] = yz
+                         mag = np.sqrt(xx**2 + yy**2 + zz**2 + 2*(xy**2 + yz**2 + xz**2))
+                         grid.point_data['strain_magnitude'] = mag
+                except: pass
+                
+            # Forces (3 components)
+            elif numComp == 3:
+                mag = np.linalg.norm(full_data, axis=1)
+                grid.point_data[f"{clean_name}_Magnitude"] = mag
+                
+                if "force" in clean_name.lower() or "load" in clean_name.lower():
+                    force_df = pd.DataFrame(full_data, columns=['Fx', 'Fy', 'Fz'], index=nodeTags)
+                    if 'Fx' not in combinedData.columns:
+                        combinedData = pd.concat([combinedData, force_df], axis=1)
+
+    # Save VTK
+    if export_vtk:
+        vtk_path = os.path.join(output_folder, 'combined_data.vtk')
+        grid.save(vtk_path)
+        print(f"Saved VTK: {vtk_path}")
+
+    # CSV Exports (using combinedData)
+    combinedData = combinedData.loc[:, ~combinedData.columns.duplicated()]
+    
     if export_smooth_stress:
         combinedData.to_csv(os.path.join(output_folder, 'smooth_stress_tensor.csv'), index=False)
-        if has_strain:
-             pass
-
-    if export_vtk:
-        points = nodeCoords.reshape(-1, 3)
-        elementTypes, elementTags, nodeTagsPerElement = gmsh.model.mesh.getElements()
-        cells = []
-        for elementType, nodeTags in zip(elementTypes, nodeTagsPerElement):
-            numNodesPerElement = gmsh.model.mesh.getElementProperties(elementType)[3]
-            for element in nodeTags.reshape(-1, numNodesPerElement):
-                cells.append(np.insert(element - 1, 0, numNodesPerElement))
-        cellsArray = np.concatenate(cells).astype(np.int_)
-        mesh = pv.PolyData(points, cellsArray)
-        mesh.point_data['Von mises Stress'] = svms
-        mesh.point_data['Forces'] = forces
-        if has_strain:
-            mesh.point_data['Equivalent Strain'] = equivalent_strains
-        vtk_file_path = os.path.join(output_folder, 'combined_data.vtk')
-        mesh.save(vtk_file_path)
-    
+        
+    if export_von_mises and 'Von mises Stress' in combinedData.columns:
+         export_von_mises_summary(selected_file, combinedData, output_folder)
+         
+    # We generally don't finalize in a loop if we are in the same process, 
+    # but Convert_to_csv.py is called as a subprocess per file, so finalize is fine.
     gmsh.finalize()
 
-    if export_von_mises:
+    # Cleanup
+    if cleanup:
+        try:
+            print(f"Cleaning up folder: {output_folder}")
+            keep_exts = ('.msh', '.vtk', '.txt', '.csv', '.tsv', '.vtp', '.ply')
+            for filename in os.listdir(output_folder):
+                file_path = os.path.join(output_folder, filename)
+                if os.path.isfile(file_path):
+                    if not filename.lower().endswith(keep_exts):
+                        try:
+                            os.remove(file_path)
+                        except: pass
+        except: pass
+
+def export_von_mises_summary(selected_file, combinedData, output_folder):
+    try:
         tolerance = 1e-4
         results_list = []
+        
         max_von_mises_stress = combinedData['Von mises Stress'].max()
         max_von_mises_stress_row = combinedData.loc[combinedData['Von mises Stress'].idxmax()]
+        # Handle case where indices are not aligned or duplicate
+        if isinstance(max_von_mises_stress_row, pd.DataFrame):
+            max_von_mises_stress_row = max_von_mises_stress_row.iloc[0]
+            
         max_von_mises_stress_coords = max_von_mises_stress_row[['X', 'Y', 'Z']].values
         min_von_mises_stress = combinedData['Von mises Stress'].min()
         average_von_mises_stress = combinedData['Von mises Stress'].mean()
+        
         results_list.append({
             'Value': 'Maximum',
             'Von mises Stress': max_von_mises_stress,
@@ -255,32 +330,34 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
 
         found_areas_of_interest = False
         area_von_mises_stress = {}
-        with open(selected_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                if found_areas_of_interest and line.startswith("#"):
-                    try:
-                        name, coordinates_str = line.strip("#").strip().split(":")
-                        coordinates_list = json.loads(coordinates_str)
-                        von_mises_stresses = []
-                        for coord_group in coordinates_list:
-                            coordinates = [float(str(coord).strip()) for coord in coord_group]
-                            x, y, z = coordinates
-                            matching_rows = combinedData[
-                                (abs(combinedData['X'] - x) < tolerance) &
-                                (abs(combinedData['Y'] - y) < tolerance) &
-                                (abs(combinedData['Z'] - z) < tolerance)
-                            ]
-                            if not matching_rows.empty:
-                                von_mises_stress = matching_rows['Von mises Stress'].mean()
-                                von_mises_stresses.append(von_mises_stress)
-                            else:
-                                print(f"Coordinates ({x}, {y}, {z}) not found in combinedData.")
-                        if von_mises_stresses:
-                            area_von_mises_stress[name.strip()] = (np.mean(von_mises_stresses), len(von_mises_stresses))
-                    except Exception as e:
-                        print(f"Error processing coordinates: {e}")
-                elif "# Areas of interest" in line:
-                    found_areas_of_interest = True
+        if os.path.exists(selected_file):
+            with open(selected_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if found_areas_of_interest and line.startswith("#"):
+                        try:
+                            name, coordinates_str = line.strip("#").strip().split(":")
+                            coordinates_list = json.loads(coordinates_str)
+                            von_mises_stresses = []
+                            for coord_group in coordinates_list:
+                                coordinates = [float(str(coord).strip()) for coord in coord_group]
+                                x, y, z = coordinates
+                                matching_rows = combinedData[
+                                    (abs(combinedData['X'] - x) < tolerance) &
+                                    (abs(combinedData['Y'] - y) < tolerance) &
+                                    (abs(combinedData['Z'] - z) < tolerance)
+                                ]
+                                if not matching_rows.empty:
+                                    von_mises_stress = matching_rows['Von mises Stress'].mean()
+                                    von_mises_stresses.append(von_mises_stress)
+                                else:
+                                    print(f"Coordinates ({x}, {y}, {z}) not found in combinedData.")
+                            if von_mises_stresses:
+                                area_von_mises_stress[name.strip()] = (np.mean(von_mises_stresses), len(von_mises_stresses))
+                        except Exception as e:
+                            print(f"Error processing coordinates: {e}")
+                    elif "# Areas of interest" in line:
+                        found_areas_of_interest = True
+        
         for name, data in area_von_mises_stress.items():
             average_von_mises_stress, num_elements = data
             results_list.append({
@@ -292,85 +369,54 @@ def process_file(selected_file, export_von_mises, export_smooth_stress, export_v
                 'Number of nodes': num_elements
             })
 
+        # Fixations
         fixations_found = False
-        accumulating = False
-        json_string = ""
-        with open(selected_file, 'r', encoding='utf-8') as f:
+        if os.path.exists(selected_file) and 'Fx' in combinedData.columns:
             accumulating = False
-            json_string = ''
-            previous_line = ''
-            for line in f:
-                if 'p[' in line and 'fixations' in line:
-                    accumulating = True
-                    json_string = '{"fixations":' + line.split('fixations')[1].split('] = ')[1].strip()
-                elif accumulating:
-                    if line.strip().startswith('p') and previous_line.strip().endswith(']'):
-                        json_string += previous_line.strip() + "}"
-                        json_string = json_string[:-3] + "]}"
-
-                        accumulating = False
-                        try:
-                            fixations = json.loads(json_string.replace("'", '"'))
-                            fixations_found = True
-                            for fixation in fixations['fixations']:
-                                x, y, z = fixation['nodes'][0]
-                                matching_rows = combinedData[
-                                    (abs(combinedData['X'] - x) < tolerance) &
-                                    (abs(combinedData['Y'] - y) < tolerance) &
-                                    (abs(combinedData['Z'] - z) < tolerance)
-                                ]
-                                if not matching_rows.empty():
-                                    row = matching_rows.iloc[0]
-                                    fx, fy, fz = row[['Fx', 'Fy', 'Fz']].values
-                                    fixation['forces'] = [fx, fy, fz]
-                                    results_list.append({
-                                        'Value': fixation['name'],
-                                        'Von mises Stress': None,
-                                        'Coordinate X': x,
-                                        'Coordinate Y': y,
-                                        'Coordinate Z': z,
-                                        'Fx': fx,
-                                        'Fy': fy,
-                                        'Fz': fz
-                                    })
-                                else:
-                                    print(f"Node ({x}, {y}, {z}) not found in combinedData.")
-                        except json.JSONDecodeError as e:
-                            print("Error decoding JSON from accumulated string: Fixations not found. Be sure you are using python files for Fossils v1.3")
-                        json_string = ""
-                    else:
-                        json_string += line.strip()
-                        previous_line = line
-        if not fixations_found:
-            print("No fixations found")
+            json_string = ""
+            with open(selected_file, 'r', encoding='utf-8') as f:
+                previous_line = ''
+                for line in f:
+                    if 'p[' in line and 'fixations' in line:
+                        accumulating = True
+                        json_string = '{"fixations":' + line.split('fixations')[1].split('] = ')[1].strip()
+                    elif accumulating:
+                        if line.strip().startswith('p') and previous_line.strip().endswith(']'):
+                            json_string += previous_line.strip() + "}"
+                            json_string = json_string[:-3] + "]}"
+                            accumulating = False
+                            try:
+                                fixations = json.loads(json_string.replace("'", '"'))
+                                fixations_found = True
+                                for fixation in fixations['fixations']:
+                                    x, y, z = fixation['nodes'][0]
+                                    matching_rows = combinedData[
+                                        (abs(combinedData['X'] - x) < tolerance) &
+                                        (abs(combinedData['Y'] - y) < tolerance) &
+                                        (abs(combinedData['Z'] - z) < tolerance)
+                                    ]
+                                    if not matching_rows.empty:
+                                        row = matching_rows.iloc[0]
+                                        fx, fy, fz = row[['Fx', 'Fy', 'Fz']].values
+                                        results_list.append({
+                                            'Value': fixation['name'],
+                                            'Von mises Stress': None,
+                                            'Coordinate X': x, 'Coordinate Y': y, 'Coordinate Z': z,
+                                            'Fx': fx, 'Fy': fy, 'Fz': fz
+                                        })
+                            except: pass
+                            json_string = ""
+                        else:
+                            json_string += line.strip()
+                            previous_line = line
+                            
         results_df = pd.DataFrame(results_list)
-        pd.set_option('display.max_rows', None)
-        pd.set_option('display.max_columns', None)
-        pd.set_option('display.width', None)
-        pd.set_option('display.max_colwidth', None)
-        print("Results:")
+        print("Results Summary:")
         print(results_df)
         results_df.to_csv(os.path.join(output_folder, 'von_mises_stress_results.csv'), index=False)
-        print(f"Results saved to {os.path.join(output_folder, 'von_mises_stress_results.csv')}")
 
-    # Cleanup: Delete everything except .vtk, .txt, and .csv (optional)
-    if cleanup:
-        try:
-            print(f"Cleaning up folder: {output_folder}")
-            for filename in os.listdir(output_folder):
-                file_path = os.path.join(output_folder, filename)
-                if os.path.isfile(file_path):
-                    # Keep .vtk, .txt, and .csv files
-                    if filename.lower().endswith(('.vtk', '.txt', '.csv')):
-                        continue
-                    
-                    try:
-                        os.remove(file_path)
-                        print(f"Deleted: {filename}")
-                    except Exception as e:
-                        print(f"Failed to delete {filename}: {e}")
-        except Exception as e:
-            print(f"Error during folder cleanup: {e}")
+    except Exception as e:
+        print(f"Error creating summary: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description="Process Python files and convert MSH to CSV and VTK.")
@@ -387,7 +433,6 @@ def main():
     selected_files = [os.path.join(args.directory, file) for file in args.files]
     export_von_mises = args.export_von_mises
     export_smooth_stress = args.export_smooth_stress
-    # auto-convert flag is an alias for export-vtk
     export_vtk = args.export_vtk or args.auto_convert_results
     cleanup = not args.no_cleanup
     workspace_dir = args.workspace_dir
