@@ -142,3 +142,4 @@ Folder/
 ```
 
 We welcome pull requests. For major changes, please open an issue first to discuss the proposed changes. Be sure to update tests as appropriate.
+\n\n<!-- Automated PR: corrected minor typos -->
